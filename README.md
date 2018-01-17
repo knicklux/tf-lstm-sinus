@@ -1,2 +1,3 @@
-# tf-lstm-sinus
-Create a sine and a cosine wave using LSTM and Tensorflow
+Train Model to label a sliding window of y-values with the correct function label.
+
+Classification Proble.
