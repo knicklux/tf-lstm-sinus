@@ -21,18 +21,19 @@ n_input = 1
 n_output = 2
 NLAYERs = 2
 
-def lstmnet(y_, X, H, pkeep, phase, global_step, Hin):
+def lstmnet(pkeep, phase, global_step, Hin):
 
     with tf.name_scope('Input') as scope:
-        x = tf.placeholder(tf.float32, [None, None, 1], name = 'x')
         # [ BATCHSIZE, SEQLEN, n_input]
-        H = tf.placeholder(tf.float32, [None, None] name='H')
+        x = tf.placeholder(tf.float32, [None, None, n_input], name = 'x')
         # [BATCHSIZE, n_hidden, NLAYERS] Remember: Only H needed for first GRU,
         # since its H will be used for the next a.s.o.
-        y_ = tf.placeholder(tf.float32, [None, None, 2], name = 'y')
+        H = tf.placeholder(tf.float32, [None, n_hidden, None] name='H')
         # [BATCHSIZE, SEQLEN, n_output]
+        y_ = tf.placeholder(tf.float32, [None, None, n_output], name = 'y')
 
     with tf.name_scope('params') as scope:
+        # Just give them names:
         pkeep = tf.identity(pkeep, 'Dropout pkeep')
         learning_rate = tf.identity(learning_rate, 'Learning Rate')
         global_step = tf.identity(global_step, 'Global Step')
