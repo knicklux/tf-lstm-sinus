@@ -10,7 +10,7 @@ import math
 import tempfile
 from termcolor import colored
 
-from tensorflow.examples.tutorials.mnist import input_data
+from tensorflow.contrib import rnn
 
 import tensorflow as tf
 
@@ -19,7 +19,7 @@ FLAGS = None
 n_hidden = 30
 n_input = 1
 n_output = 2
-NLAYERs = 2
+NLAYERS = 2
 
 def lstmnet(pkeep, phase, global_step, Hin):
 
@@ -28,7 +28,7 @@ def lstmnet(pkeep, phase, global_step, Hin):
         x = tf.placeholder(tf.float32, [None, None, n_input], name = 'x')
         # [BATCHSIZE, n_hidden, NLAYERS] Remember: Only H needed for first GRU,
         # since its H will be used for the next a.s.o.
-        H = tf.placeholder(tf.float32, [None, n_hidden, None] name='H')
+        H = tf.placeholder(tf.float32, [None, n_hidden, NLAYERS], name='H')
         # [BATCHSIZE, SEQLEN, n_output]
         y_ = tf.placeholder(tf.float32, [None, None, n_output], name = 'y')
 
@@ -45,7 +45,7 @@ def lstmnet(pkeep, phase, global_step, Hin):
         # "naive dropout" implementation
         dropcells = [rnn.DropoutWrapper(cell,input_keep_prob=pkeep) for cell in cells]
         multicell = rnn.MultiRNNCell(dropcells, state_is_tuple=False)
-        multicell = rnn.DropoutWrapper(multicell, output_keep_prob=pk
+        multicell = rnn.DropoutWrapper(multicell, output_keep_prob=pkeep) # dropout for the softmax layer
         # y, states = rnn.static_rnn(rnn_cell, X, dtype=tf.float32)
         Yr, H = tf.nn.dynamic_rnn(multicell, X, dtype=tf.float32, initial_state=Hin)
         # Yr: [ BATCHSIZE, SEQLEN, n_hidden ]
