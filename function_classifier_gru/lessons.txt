@@ -1,0 +1,14 @@
+Lessons learned:
+
+Use random variables only during epoch generation and then hand over
+the next batches batch by batch.
+Dropout is great on overkill nets
+TFRecords are definetly faster than whatever this is doing
+Prepare Data using numpy, not tensors
+Model as classes are cleaner
+Good interface for data utility:
+1) Describe data source
+2) Generate epochs
+3) call get_next_batch()
+Operations with random array manipulation are CPU intensive
+feed_dict's are cool, let's try out pipes instead :D 
