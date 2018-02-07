@@ -118,7 +118,7 @@ def main():
                                                                 feed_dict={train_x: batch_xs, train_y: batch_ys, train_keep: config.pkeep, train_H: Hin,
                                                                            test_x: test_batch_xs, test_y: test_batch_ys, test_keep: 1.0, test_H: Hin})
 
-                saver.save(sess, "/tmp/.try_to_find_me_again.ckpt")
+                saver.save(sess, config.checkpoint_path)
                 writer.add_summary(training_summary, step)
                 writer.add_summary(test_summary, step)
             else:
