@@ -4,13 +4,14 @@ import numpy as np
 # Training
 
 learning_rate = 0.0001
-decay = 0.9
+decay_rate = 10
+decay_steps = 100000
 batch_size = 100
 iters = 50000
 summary_iters = 50
 epoch_size = 800
 test_epoch_size = 50
-checkpoint_path = "./checkpoints/gru_function_classifier/chkpt"
+checkpoint_path = "checkpoints/gru_function_classifier/"
 data_tmp_folder = "./data/records/gru_function_classifier/"
 training_examples_number = 10000
 validation_examples_number = 1000

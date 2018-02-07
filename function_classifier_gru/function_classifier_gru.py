@@ -47,7 +47,9 @@ def lstmnet(global_step, phase, reuse_weights):
 
         # Last layer to evaluate INTERNALSIZE LSTM output to logits
         # One-Hot-Encoding the answer
-        YLogits = layers.linear(last, config.output_dimension)
+        # YLogits = layers.linear(last, config.output_dimension)
+        # Using new API:
+        YLogits = layers.fully_connected(last, config.output_dimension, activation_fn=None, reuse=reuse_weights, scope='NeuralNet')
         # YLogits: [ BATCH_SIZE, config.output_dimension ]
 
     with tf.variable_scope('TrainingAndLoss', reuse=tf.AUTO_REUSE) as scope:
@@ -55,7 +57,7 @@ def lstmnet(global_step, phase, reuse_weights):
             scope.reuse_variables()
 
         starter_learning_rate = config.learning_rate
-        learning_rate = tf.train.inverse_time_decay(starter_learning_rate, global_step, 100000, 10)
+        learning_rate = tf.train.inverse_time_decay(starter_learning_rate, global_step, config.decay_steps, config.decay_rate)
 
         y_ = tf.placeholder(tf.uint8, shape=[config.batch_size])
         # y_: [BATCH_SIZE] # int(s) identifying correct function.
@@ -64,8 +66,10 @@ def lstmnet(global_step, phase, reuse_weights):
         # [BATCH_SIZE, config.output_dimension]
         # train_y_ = tf.reshape(train_y_, [-1, config.output_dimension])
         # [BATCH_SIZE, config.output_dimension]
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=YLogits, labels=yo_))
-        train_op = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=config.decay).minimize(cross_entropy)
+        # cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=YLogits, labels=yo_))
+        # Using new API
+        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=yo_, logits=YLogits))
+        train_op = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
 
     # accuracy
     with tf.name_scope('Summary') as scope:

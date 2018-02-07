@@ -16,6 +16,10 @@ GENERATE_DATA = True
 
 def main():
 
+    # Create checkpoint+checkpoint_path
+    if not os.path.exists(config.checkpoint_path):
+        os.makedirs(config.checkpoint_path)
+
     # Create training data.
     if GENERATE_DATA or not os.path.exists(config.data_tmp_folder):
         if not os.path.exists(config.data_tmp_folder):
