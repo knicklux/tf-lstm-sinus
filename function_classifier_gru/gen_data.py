@@ -50,6 +50,38 @@ def read_function_vals_csv(xlabel, ylabel, filename):
     dataX = xdf.values
     return dataX, dataY
 
+def gen_batches_from_datasequences(datasequences, batchnum, batchsize, sequence_length):
+    # datasequences: [ OUTPUT_DIMENSION, TOTAL_LENGTH, INPUT_DIMENSION ]
+    labelnum = datasequences.shape[0]
+    dim = datasequences.shape[2]
+    batches = np.ndarray(shape=(batchnum, batchsize, sequence_length, dim), dtype=np.float32)
+    labels = np.ndarray(shape=(batchnum, batchsize), dtype=np.uint8)
+    for i in range(batchnum):
+        for j in range(batchsize):
+            sel = np.random.randint(0, labelnum)
+            seq = rand_seq_from_datasequence(datasequences[sel], sequence_length)
+            batches[i,j,:,:] = seq
+            labels[i,j] = sel
+    # batches: [ BATCHNUM, BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+    # labels: [ BATCHNUM, BATCHSIZE ]
+    return batches, labels
+
+def all_batches_from_datasequences(datasequences, batchnum, batchsize, sequence_length):
+    # datasequences: [ OUTPUT_DIMENSION, TOTAL_LENGTH, INPUT_DIMENSION ]
+    labelnum = datasequences.shape[0]
+    dim = datasequences.shape[2]
+    batches = np.ndarray(shape=(batchnum, batchsize, sequence_length, dim), dtype=np.float32)
+    labels = np.ndarray(shape=(batchnum, batchsize), dtype=np.uint8)
+    for i in range(batchnum):
+        for j in range(batchsize):
+            sel = np.random.randint(0, labelnum)
+            seq = datasequences[sel,i*batchnum+j:i*batchnum+j+sequence_length,:]
+            batches[i,j,:,:] = seq
+            labels[i,j] = sel
+    # batches: [ BATCHNUM, BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+    # labels: [ BATCHNUM, BATCHSIZE ]
+    return batches, labels
+
 def rand_seq_from_datasequence(dataseq, seqlen):
     maxlen = dataseq.shape[0]-seqlen
     point = np.random.randint(0, maxlen)

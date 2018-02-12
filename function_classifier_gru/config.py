@@ -4,17 +4,15 @@ import numpy as np
 # Training
 
 learning_rate = 0.0001
-decay_rate = 10
+decay_rate = 0.94
 decay_steps = 100000
 batch_size = 100
-iters = 50000
 summary_iters = 50
-epoch_size = 800
-test_epoch_size = 50
-checkpoint_path = "checkpoints/gru_function_classifier/"
+epoch_size = 10000
+batch_num = int(epoch_size/batch_size)
+test_batches_size = 100
+checkpoint_path = "./checkpoints/gru_function_classifier/"
 data_tmp_folder = "./data/records/gru_function_classifier/"
-training_examples_number = 10000
-validation_examples_number = 1000
 labels = {'sine', 'linear'}
 
 # Confusing: Output dimension of the LSTM
@@ -25,6 +23,9 @@ output_dimension = len(labels)
 input_dimension = 1
 
 sequence_length = 100
-hidden_layer_size = 30
+hidden_layer_size = 5
 hidden_layer_depth = 2
-pkeep = 0.5
+pkeep = 1.0
+
+
+iters = 1000*batch_num

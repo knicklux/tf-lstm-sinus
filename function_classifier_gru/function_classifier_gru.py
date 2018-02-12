@@ -18,7 +18,7 @@ def lstmnet(global_step, phase, reuse_weights):
 
         pkeep = tf.placeholder(tf.float32)
 
-        Hin = tf.placeholder(tf.float32, [None, config.hidden_layer_size * config.hidden_layer_depth], name='Hin')
+        Hin = tf.placeholder(tf.float32, [config.batch_size, config.hidden_layer_size * config.hidden_layer_depth], name='Hin')
         # Hin: [ BATCH_SIZE, INTERNALSIZE * NLAYERS]
 
         # using a NLAYERS=2 layers of GRU cells, unrolled SEQLEN=30 times
@@ -47,9 +47,9 @@ def lstmnet(global_step, phase, reuse_weights):
 
         # Last layer to evaluate INTERNALSIZE LSTM output to logits
         # One-Hot-Encoding the answer
-        # YLogits = layers.linear(last, config.output_dimension)
+        YLogits = layers.linear(last, config.output_dimension)
         # Using new API:
-        YLogits = layers.fully_connected(last, config.output_dimension, activation_fn=None, reuse=reuse_weights, scope='NeuralNet')
+        # YLogits = layers.fully_connected(last, config.output_dimension, activation_fn=None, reuse=reuse_weights, scope='NeuralNet')
         # YLogits: [ BATCH_SIZE, config.output_dimension ]
 
     with tf.variable_scope('TrainingAndLoss', reuse=tf.AUTO_REUSE) as scope:
@@ -69,7 +69,7 @@ def lstmnet(global_step, phase, reuse_weights):
         # cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=YLogits, labels=yo_))
         # Using new API
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=yo_, logits=YLogits))
-        train_op = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
+        train_op = tf.train.RMSPropOptimizer(learning_rate=config.learning_rate, decay=config.decay_rate).minimize(cross_entropy)
 
     # accuracy
     with tf.name_scope('Summary') as scope:
@@ -78,7 +78,7 @@ def lstmnet(global_step, phase, reuse_weights):
 
         tf.summary.scalar(phase + "/loss", cross_entropy)
         tf.summary.scalar(phase + "/acc", accuracy)
-        tf.summary.scalar(phase + "/lr", learning_rate)
+        # tf.summary.scalar(phase + "/lr", learning_rate)
         summary_op = tf.summary.merge_all()
 
     return x, y_, Hin, pkeep, train_op, summary_op
