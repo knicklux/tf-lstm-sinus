@@ -63,13 +63,8 @@ def main():
         data_queue = tf.train.string_input_producer([config.data_tmp_folder + config.data_tfrecord_filename], num_epochs=config.epochs)
         test_queue = tf.train.string_input_producer([config.data_tmp_folder + config.test_tfrecord_filename], num_epochs=config.test_epochs)
 
-        sequences_batch, labels_batch = gen_data.read_and_decode(data_queue, config.batch_size, config.sequence_length, config.output_dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
-        test_sequences_batch, test_labels_batch = gen_data.read_and_decode(test_queue, config.batch_size, config.sequence_length, config.output_dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
-
-        # batch_xs: [ BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-        # batch_ys: [ BATCHSIZE ]
-        # test_batch_xs: [ TEST_BATCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-        # test_batch_ys: [ TEST_BATCHSIZE ]
+        sequences_batch, labels_batch = gen_data.read_and_decode(data_queue, config.batch_size, config.sequence_length, config.input_dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
+        test_sequences_batch, test_labels_batch = gen_data.read_and_decode(test_queue, config.batch_size, config.sequence_length, config.input_dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
 
     # Global Step Counter
     with tf.name_scope('Global_Step') as scope:

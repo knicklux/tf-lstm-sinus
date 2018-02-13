@@ -15,7 +15,7 @@ def lstmnet(input_tensor, label_tensor, global_step, phase, reuse_weights):
         if reuse_weights:
             scope.reuse_variables(reuse_weights)
 
-        X = tf.reshape(x, (config.batch_size, config.sequence_length, config.input_dimension))
+        X = tf.reshape(input_tensor, (config.batch_size, config.sequence_length, config.input_dimension))
         # X: [ BATCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION]
 
         pkeep = tf.placeholder(tf.float32)

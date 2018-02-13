@@ -207,14 +207,18 @@ def read_and_decode(filename_queue, batch_size, const_sequence_length, const_dim
     sequence_bytes = tf.decode_raw(features['seq_raw'], tf.float32)
     label_bytes = tf.decode_raw(features['label_raw'], tf.uint8)
 
-    sequence_shape = tf.stack([seqlen, dim])
-    label_shape = tf.stack([seqlen])
+    sequence_shape = tf.stack([const_sequence_length, const_dim])
+    label_shape = tf.stack([1])
     sequence_shape_const = tf.constant((const_sequence_length, const_dim), dtype=tf.float32)
-    label_shape_const = tf.constant((const_sequence_length), dtype=tf.float32)
+    label_shape_const = tf.constant((1), dtype=tf.float32)
     sequence = tf.reshape(sequence_bytes, sequence_shape)
     label = tf.reshape(label_bytes, label_shape)
 
     # create and shuffle batch
-    sequences, labels = tf.train.shuffle_batch([sequence, label], batch_size, capacity, num_threads, min_after_dequeue)
+    sequences, labels_a = tf.train.shuffle_batch([sequence, label], batch_size, capacity, num_threads, min_after_dequeue)
+    labels = tf.squeeze(labels_a, axis=1)
+    labels = tf.reshape(labels, (batch_size))
+    # sequneces: [ BATCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+    #labels: [ BATCH_SIZE ]
 
     return sequences, labels
