@@ -186,7 +186,7 @@ def function_sequences_to_tfrecord(functionsequences, labels, filename):
 
     writer.close()
 
-def read_and_decode(filename_queue, batch_size, capacity, num_threads, min_after_dequeue):
+def read_and_decode(filename_queue, batch_size, const_sequence_length, const_dim, capacity, num_threads, min_after_dequeue):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -208,21 +208,13 @@ def read_and_decode(filename_queue, batch_size, capacity, num_threads, min_after
     label_bytes = tf.decode_raw(features['label_raw'], tf.uint8)
 
     sequence_shape = tf.stack([seqlen, dim])
-    print(seqlen)
-    print(dim)
-    print(sequence_shape)
-    sequence_shape_const = tf.constant((seqlen, dim), dtype=tf.float32)
-    label_shape_const = tf.constant((seqlen), dtype=tf.float32)
-    print(seqlen)
-    print(sequence_shape)
+    label_shape = tf.stack([seqlen])
+    sequence_shape_const = tf.constant((const_sequence_length, const_dim), dtype=tf.float32)
+    label_shape_const = tf.constant((const_sequence_length), dtype=tf.float32)
     sequence = tf.reshape(sequence_bytes, sequence_shape)
-    label = label_bytes
+    label = tf.reshape(label_bytes, label_shape)
 
     # create and shuffle batch
-    print(batch_size)
-    print(capacity)
-    print(num_threads)
-    print(min_after_dequeue)
     sequences, labels = tf.train.shuffle_batch([sequence, label], batch_size, capacity, num_threads, min_after_dequeue)
 
     return sequences, labels
