@@ -11,4 +11,10 @@ Good interface for data utility:
 2) Generate epochs
 3) call get_next_batch()
 Operations with random array manipulation are CPU intensive
-feed_dict's are cool, let's try out pipes instead :D 
+feed_dict's are cool, let's try out pipes instead :D
+
+Rewriting the batch generation didn't help performance too much, it would
+have been better to first try out a beefier GPU
+
+Go deeper: Helps :) (1 or 2 layers)
+Go wider: Meh. Leave it at ~5 neurons (overfitting)

@@ -6,11 +6,11 @@ import numpy as np
 learning_rate = 0.0001
 decay_rate = 0.94
 decay_steps = 100000
-batch_size = 100
+batch_size = 200
 summary_iters = 50
 epoch_size = 10000
 batch_num = int(epoch_size/batch_size)
-test_batches_size = 100
+test_batches_size = 200
 checkpoint_path = "./checkpoints/gru_function_classifier/"
 data_tmp_folder = "./data/records/gru_function_classifier/"
 labels = {'sine', 'linear'}
@@ -25,7 +25,7 @@ input_dimension = 1
 sequence_length = 100
 hidden_layer_size = 5
 hidden_layer_depth = 2
-pkeep = 1.0
+pkeep = 0.5
 
 
 iters = 1000*batch_num

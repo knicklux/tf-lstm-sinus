@@ -4,6 +4,7 @@ import time
 import tempfile
 from termcolor import colored
 
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
@@ -26,9 +27,9 @@ def main():
             os.makedirs(config.data_tmp_folder)
         print("Generating Data CSV")
         # List of lambdas: [lambda x: math.sin(x)]
-        gen_data.gen_function_vals_csv(-50, 50, 0.05, lambda x: math.sin(x),
+        gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.sequence_length)*0.02, 0.02, lambda x: math.sin(x),
                                        config.data_tmp_folder + 'sine.csv')
-        gen_data.gen_function_vals_csv(-50, 50, 0.05, lambda x: x*0.8 + 0.04,
+        gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.sequence_length)*0.02, 0.02, lambda x: x*0.8 + 0.04,
                                        config.data_tmp_folder + 'lin.csv')
 
     print("Reading Data from CSV")
@@ -41,7 +42,7 @@ def main():
     lin_x, lin_y = gen_data.read_function_vals_csv('x', 'y', config.data_tmp_folder + 'lin.csv')
     # lin_x: [TOTAL_LENGTH, 1]
     # lin_y:  [TOTAL_LENGTH, INPUT_DIMENSION]
-    train_labels = np.array([1,2])
+    train_labels = np.array([1, 2])
     # train_labels: [OUTPUT_DIMENSION]
     # ONly use y-values, time is useless information (time invariant Classification)
     data_sine = sine_y
@@ -49,27 +50,19 @@ def main():
     data_lin = lin_y
     # data_lin: [TOTAL_LENGTH, 1]
 
-    with tf.variable_scope('TrainData', reuse=tf.AUTO_REUSE) as scope:
-        # Pre generate epoch_size number of sequence_length long sequences as training data (one epoch)
-        train_features_sine = gen_data.rand_sequences_from_datasequence(
-            data_sine, config.sequence_length, config.epoch_size)
-        # train_features_sine: [ EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION]
-        train_features_lin = gen_data.rand_sequences_from_datasequence(
-            data_lin, config.sequence_length, config.epoch_size)
-        # train_features_lin: [ EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION]
-        train_features = np.stack([train_features_sine, train_features_lin], axis=3)
-        # train_features: [ EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION, OUTPUT_DIMENSION]
-
-    with tf.variable_scope('TestData', reuse=tf.AUTO_REUSE) as scope:
-        # Pre generate test_epoch_size number of sequence_length long sequences as testing data (one test epoch)
-        validation_features_sine = gen_data.rand_sequences_from_datasequence(
-            data_sine, config.sequence_length, config.test_epoch_size)
-        # test_features_sine: [ TEST_EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-        validation_features_lin = gen_data.rand_sequences_from_datasequence(
-            data_lin, config.sequence_length, config.test_epoch_size)
-        # test_features_lin: [ TEST_EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-        validation_features = np.stack([validation_features_sine, validation_features_lin], axis=3)
-        # train_features: [ EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION, OUTPUT_DIMENSION ]
+    print("Generating Epoch containing Batches")
+    datasequences = np.stack((data_sine, data_lin), axis=0)
+    # datasequences: [ OUTPUT_DIMENSION, TOTAL_LENGTH, INPUT_DIMENSION ]
+    train_batches, train_labels = gen_data.all_batches_from_datasequences(
+        datasequences, config.batch_num, config.batch_size, config.sequence_length)
+    # train_batches: [ BATCHNUM, BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+    # train_labels: [ BATCHNUM, BATCHSIZE ]
+    test_batch, test_labels = gen_data.gen_batches_from_datasequences(
+        datasequences, 1, config.test_batches_size, config.sequence_length)
+    test_batch = test_batch[0]
+    test_labels = test_labels[0]
+    # test_batch: [ TEST_BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+    # test_labels: [ TEST_BATCHSIZE ]
 
     # Create model
     print("Creating Model")
@@ -80,8 +73,8 @@ def main():
         increment_global_step_op = tf.assign(global_step, global_step + 1)
 
     # Model
-    Hin = np.zeros([config.batch_size, config.hidden_layer_size * config.hidden_layer_depth], dtype=np.float32)
-    #Hin = tf.convert_to_tensor(Hin, tf.float32, name='Hinitial')
+    Hin = np.zeros([config.batch_size, config.hidden_layer_size *
+                    config.hidden_layer_depth], dtype=np.float32)
     # Hin: [ BATCH_SIZE, INTERNALSIZE * NLAYERS]
     train_x, train_y, train_H, train_keep, train_step, train_summary_op = lstmnet(
         global_step, "train", False)
@@ -99,7 +92,16 @@ def main():
     # Limit used gpu memory.
     print("Configuring Tensorflow")
     tfconfig = tf.ConfigProto()
-    tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.75
+    # tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.75
+
+    # Plot test batch
+    # test_batch: [ TEST_BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+    # test_batch_plt = np.reshape(test_batch, (config.test_batches_size, config.sequence_length))
+    # for i in range(config.test_batches_size):
+    #     print(test_batch_plt[i].shape)
+    #     plt.plot(test_batch_plt[i].tolist())
+    #     print(test_labels[i])
+    #     plt.show(block=True)
 
     # train model.
     with tf.Session(config=tfconfig) as sess:
@@ -109,18 +111,22 @@ def main():
         print("Training")
 
         for step in range(config.iters):
-            batch_xs, batch_ys = gen_data.rand_batch_from_dataepochs(
-                train_features, config.batch_size)
-            test_batch_xs, test_batch_ys = gen_data.rand_batch_from_dataepochs(
-                validation_features, config.batch_size)
+            # batch_xs, batch_ys = gen_data.rand_batch_from_dataepochs(
+            #    train_features, config.batch_size)
+            # test_batch_xs, test_batch_ys = gen_data.rand_batch_from_dataepochs(
+            #    validation_features, config.batch_size)
+            batch_xs = train_batches[step % (config.batch_num)]
+            batch_ys = train_labels[step % (config.batch_num)]
+            test_batch_xs = test_batch
+            test_batch_ys = test_labels
             # batch_xs: [ BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-            # batch_ys: [ BATCHSIZE, SEQUENCE_LENGTH ]
-            # test_batch_xs: [ BATCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-            # test_batch_ys: [ BATCHSIZE, SEQUENCE_LENGTH ]
+            # batch_ys: [ BATCHSIZE ]
+            # test_batch_xs: [ TEST_BATCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+            # test_batch_ys: [ TEST_BATCHSIZE ]
             if step % 100 == 0:  # summary step
-                _, training_summary, _, test_summary = sess.run([train_step, train_summary_op, test_step, test_summary_op],
-                                                                feed_dict={train_x: batch_xs, train_y: batch_ys, train_keep: config.pkeep, train_H: Hin,
-                                                                           test_x: test_batch_xs, test_y: test_batch_ys, test_keep: 1.0, test_H: Hin})
+                _, training_summary, test_summary = sess.run([train_step, train_summary_op, test_summary_op],
+                                                             feed_dict={train_x: batch_xs, train_y: batch_ys, train_keep: config.pkeep, train_H: Hin,
+                                                                        test_x: test_batch_xs, test_y: test_batch_ys, test_keep: 1.0, test_H: Hin})
 
                 saver.save(sess, config.checkpoint_path)
                 writer.add_summary(training_summary, step)
