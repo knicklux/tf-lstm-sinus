@@ -215,10 +215,8 @@ def read_and_decode(filename_queue, batch_size, const_sequence_length, const_dim
     label = tf.reshape(label_bytes, label_shape)
 
     # create and shuffle batch
-    sequences, labels_a = tf.train.shuffle_batch([sequence, label], batch_size, capacity, num_threads, min_after_dequeue)
-    labels = tf.squeeze(labels_a, axis=1)
-    labels = tf.reshape(labels, (batch_size))
-    # sequneces: [ BATCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-    #labels: [ BATCH_SIZE ]
+    sequences, labels = tf.train.shuffle_batch([sequence, label], batch_size, capacity, num_threads, min_after_dequeue)
+    sequences.set_shape([batch_size, const_sequence_length, const_dim])
+    labels.set_shape([batch_size, 1])
 
     return sequences, labels

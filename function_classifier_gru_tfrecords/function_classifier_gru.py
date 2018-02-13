@@ -13,9 +13,9 @@ def lstmnet(input_tensor, label_tensor, global_step, phase, reuse_weights):
 
     with tf.variable_scope('NeuralNet', reuse=tf.AUTO_REUSE) as scope:
         if reuse_weights:
-            scope.reuse_variables(reuse_weights)
+            scope.reuse_variables()
 
-        X = tf.reshape(input_tensor, (config.batch_size, config.sequence_length, config.input_dimension))
+        X = tf.reshape(input_tensor, [config.batch_size, config.sequence_length, config.input_dimension])
         # X: [ BATCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION]
 
         pkeep = tf.placeholder(tf.float32)
@@ -61,7 +61,7 @@ def lstmnet(input_tensor, label_tensor, global_step, phase, reuse_weights):
         starter_learning_rate = config.learning_rate
         learning_rate = tf.train.inverse_time_decay(starter_learning_rate, global_step, config.decay_steps, config.decay_rate)
 
-        y_ = tf.reshape(label_tensor, (config.batch_size))
+        y_ = tf.reshape(label_tensor, [config.batch_size])
         # y_: [BATCH_SIZE] # int(s) identifying correct function.
         # One-Hot encoode y_
         yo_ = tf.one_hot(y_, config.output_dimension, 1.0, 0.0)
@@ -83,4 +83,4 @@ def lstmnet(input_tensor, label_tensor, global_step, phase, reuse_weights):
         # tf.summary.scalar(phase + "/lr", learning_rate)
         summary_op = tf.summary.merge_all()
 
-    return x, y_, Hin, pkeep, train_op, summary_op
+    return Hin, pkeep, train_op, summary_op

@@ -78,6 +78,7 @@ def main():
     Hin = np.zeros([config.batch_size, config.hidden_layer_size *
                     config.hidden_layer_depth], dtype=np.float32)
     # Hin: [ BATCH_SIZE, INTERNALSIZE * NLAYERS]
+
     train_H, train_keep, train_step, train_summary_op = lstmnet(
         sequences_batch, labels_batch, global_step, "train", False)
     test_H, test_keep, test_step, test_summary_op = lstmnet(
@@ -110,7 +111,9 @@ def main():
     # train model.
     with tf.Session(config=tfconfig) as sess:
         print("Setup")
-        sess.run(init_op)
+        #sess.run(init_op)
+        sess.run(tf.local_variables_initializer())
+        sess.run(tf.global_variables_initializer())
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
 
