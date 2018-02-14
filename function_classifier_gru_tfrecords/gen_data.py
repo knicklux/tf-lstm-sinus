@@ -98,7 +98,6 @@ def all_sequences_from_datasequence(datasequences, sequence_length):
     sequences = np.ndarray(shape=(total_seqnum, sequence_length, dim), dtype=np.float32)
     labels = np.ndarray(shape=(total_seqnum), dtype=np.float32)
 
-    # let's see, how good tf.train.shuffle is :^)
     for i in range(labelnum):
         for j in range(seqnum):
             seq = datasequences[i,j:j+sequence_length,:]
@@ -135,6 +134,7 @@ def rand_sequences_from_datasequences(datasequences, labels, seqnum, delete=Fals
         label = labels[idx]
         if(delete):
             np.delete(datasequences, idx, axis=0)
+            np.delete(labels, idx, axis=0)
         seqar[i] = seq
         newlabels[i] = label
 
@@ -216,8 +216,8 @@ def read_and_decode(filename_queue, batch_size, const_sequence_length, const_dim
 
     sequence_shape = tf.stack([const_sequence_length, const_dim])
     label_shape = tf.stack([1])
-    sequence_shape_const = tf.constant((const_sequence_length, const_dim), dtype=tf.float32)
-    label_shape_const = tf.constant((1), dtype=tf.float32)
+    sequence_shape_const = tf.constant((const_sequence_length, const_dim), dtype=tf.int32)
+    label_shape_const = tf.constant((1), dtype=tf.int32)
     sequence_dtype = tf.float32
     label_dtype = tf.uint8
 

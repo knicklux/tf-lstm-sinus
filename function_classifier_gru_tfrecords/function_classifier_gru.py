@@ -23,10 +23,6 @@ def lstmnet(input_tensor, label_tensor, global_step, phase, reuse_weights):
         Hin = tf.placeholder(tf.float32, [config.batch_size, config.hidden_layer_size * config.hidden_layer_depth], name='Hin')
         # Hin: [ BATCH_SIZE, INTERNALSIZE * NLAYERS]
 
-        # using a NLAYERS=2 layers of GRU cells, unrolled SEQLEN=30 times
-        # dynamic_rnn infers SEQLEN from the size of the inputs Xo
-
-        # How to properly apply dropout in RNNs: see README.md
         cells = [rnn.GRUCell(config.hidden_layer_size) for _ in range(config.hidden_layer_depth)]
         # "naive dropout" implementation
         dropcells = [rnn.DropoutWrapper(cell,input_keep_prob=pkeep) for cell in cells]
