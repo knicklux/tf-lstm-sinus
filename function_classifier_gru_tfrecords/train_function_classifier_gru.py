@@ -56,12 +56,12 @@ def main():
     # test_functionsequences: [ TEST_EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
     # test_labels: [ TEST_EPOCH_SIZE ]
     gen_data.function_sequences_to_tfrecord(functionsequences, labels, config.data_tmp_folder+config.data_tfrecord_filename)
-    gen_data.function_sequences_to_tfrecord(test_functionsequences, test_labels, config.data_tmp_folder+config.data_tfrecord_filename)
+    gen_data.function_sequences_to_tfrecord(test_functionsequences, test_labels, config.data_tmp_folder+config.test_tfrecord_filename)
 
-    with tf.name_scope('input') as scope:
+    with tf.name_scope('Input') as scope:
 
-        data_queue = tf.train.string_input_producer([config.data_tmp_folder + config.data_tfrecord_filename], num_epochs=config.epochs)
-        test_queue = tf.train.string_input_producer([config.data_tmp_folder + config.test_tfrecord_filename], num_epochs=config.test_epochs)
+        data_queue = tf.train.string_input_producer([config.data_tmp_folder + config.data_tfrecord_filename])
+        test_queue = tf.train.string_input_producer([config.data_tmp_folder + config.test_tfrecord_filename])
 
         sequences_batch, labels_batch = gen_data.read_and_decode(data_queue, config.batch_size, config.sequence_length, config.input_dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
         test_sequences_batch, test_labels_batch = gen_data.read_and_decode(test_queue, config.batch_size, config.sequence_length, config.input_dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
@@ -77,7 +77,7 @@ def main():
     # Model
     Hin = np.zeros([config.batch_size, config.hidden_layer_size *
                     config.hidden_layer_depth], dtype=np.float32)
-    # Hin: [ BATCH_SIZE, INTERNALSIZE * NLAYERS]
+    # Hin: [ BATCH_SIZE, INTERNALSIZE * NLAYERS ]
 
     train_H, train_keep, train_step, train_summary_op = lstmnet(
         sequences_batch, labels_batch, global_step, "train", False)
@@ -99,29 +99,17 @@ def main():
     init_op = tf.group(tf.global_variables_initializer(),
                    tf.local_variables_initializer())
 
-    # Plot test batch
-    # test_batch: [ TEST_BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-    # test_batch_plt = np.reshape(test_batch, (config.test_batch_size, config.sequence_length))
-    # for i in range(config.test_batch_size):
-    #     print(test_batch_plt[i].shape)
-    #     plt.plot(test_batch_plt[i].tolist())
-    #     print(test_labels[i])
-    #     plt.show(block=True)
-
     # train model.
     with tf.Session(config=tfconfig) as sess:
         print("Setup")
-        #sess.run(init_op)
-        sess.run(tf.local_variables_initializer())
-        sess.run(tf.global_variables_initializer())
+        sess.run(init_op)
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
 
         print("Training")
-
         for step in range(config.iters):
 
-            if step % 100 == 0:  # summary step
+            if step % config.summary_iters == 0:  # summary step
                 _, training_summary, test_summary = sess.run([train_step, train_summary_op, test_summary_op],
                                                              feed_dict={train_keep: config.pkeep, train_H: Hin,
                                                                         test_keep: 1.0, test_H: Hin})
@@ -133,7 +121,7 @@ def main():
                 _ = sess.run([train_step], feed_dict={train_keep: config.pkeep, train_H: Hin})
 
             # Increment global step Counter
-            sess.run(increment_global_step_op)
+            # sess.run(increment_global_step_op)
 
         coord.request_stop()
         coord.join(threads)

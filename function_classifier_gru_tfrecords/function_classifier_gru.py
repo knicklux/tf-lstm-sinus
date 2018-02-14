@@ -44,14 +44,9 @@ def lstmnet(input_tensor, label_tensor, global_step, phase, reuse_weights):
         last = tf.gather(output, int(output.get_shape()[0])-1)
         # last: [ BATCH_SIZE , config.output_dimension]
 
-        # Maybe useful line for prediction LSTM
-        #Yflat = tf.reshape(Yr, [-1, self.hyper_params.arch.hidden_layer_size])    # [ BATCH_SIZE x SEQLEN, INTERNALSIZE ]
-
         # Last layer to evaluate INTERNALSIZE LSTM output to logits
-        # One-Hot-Encoding the answer
-        YLogits = layers.linear(last, config.output_dimension)
-        # Using new API:
-        # YLogits = layers.fully_connected(last, config.output_dimension, activation_fn=None, reuse=reuse_weights, scope='NeuralNet')
+        # One-Hot-Encoding the answer using new API:
+        YLogits = layers.fully_connected(last, config.output_dimension, activation_fn=None, reuse=reuse_weights, scope='NeuralNet')
         # YLogits: [ BATCH_SIZE, config.output_dimension ]
 
     with tf.variable_scope('TrainingAndLoss', reuse=tf.AUTO_REUSE) as scope:
@@ -66,10 +61,6 @@ def lstmnet(input_tensor, label_tensor, global_step, phase, reuse_weights):
         # One-Hot encoode y_
         yo_ = tf.one_hot(y_, config.output_dimension, 1.0, 0.0)
         # [BATCH_SIZE, config.output_dimension]
-        # train_y_ = tf.reshape(train_y_, [-1, config.output_dimension])
-        # [BATCH_SIZE, config.output_dimension]
-        # cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=YLogits, labels=yo_))
-        # Using new API
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=yo_, logits=YLogits))
         train_op = tf.train.RMSPropOptimizer(learning_rate=config.learning_rate, decay=config.decay_rate).minimize(cross_entropy)
 
@@ -80,7 +71,6 @@ def lstmnet(input_tensor, label_tensor, global_step, phase, reuse_weights):
 
         tf.summary.scalar(phase + "/loss", cross_entropy)
         tf.summary.scalar(phase + "/acc", accuracy)
-        # tf.summary.scalar(phase + "/lr", learning_rate)
         summary_op = tf.summary.merge_all()
 
     return Hin, pkeep, train_op, summary_op

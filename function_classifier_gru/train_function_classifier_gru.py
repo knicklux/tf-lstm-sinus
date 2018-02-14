@@ -94,15 +94,6 @@ def main():
     tfconfig = tf.ConfigProto()
     # tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.75
 
-    # Plot test batch
-    # test_batch: [ TEST_BATCHSIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-    # test_batch_plt = np.reshape(test_batch, (config.test_batches_size, config.sequence_length))
-    # for i in range(config.test_batches_size):
-    #     print(test_batch_plt[i].shape)
-    #     plt.plot(test_batch_plt[i].tolist())
-    #     print(test_labels[i])
-    #     plt.show(block=True)
-
     # train model.
     with tf.Session(config=tfconfig) as sess:
         print("Setup")
@@ -123,7 +114,7 @@ def main():
             # batch_ys: [ BATCHSIZE ]
             # test_batch_xs: [ TEST_BATCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
             # test_batch_ys: [ TEST_BATCHSIZE ]
-            if step % 100 == 0:  # summary step
+            if step % config.summary_iters == 0:  # summary step
                 _, training_summary, test_summary = sess.run([train_step, train_summary_op, test_summary_op],
                                                              feed_dict={train_x: batch_xs, train_y: batch_ys, train_keep: config.pkeep, train_H: Hin,
                                                                         test_x: test_batch_xs, test_y: test_batch_ys, test_keep: 1.0, test_H: Hin})
@@ -136,8 +127,9 @@ def main():
                              train_x: batch_xs, train_y: batch_ys, train_keep: config.pkeep,  train_H: Hin})
 
             # Increment global step Counter
-            sess.run(increment_global_step_op)
+            # sess.run(increment_global_step_op)
 
+        # Evaluate test batch and plot wrong classifications
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,7 @@ learning_rate = 0.0001
 decay_rate = 0.94
 decay_steps = 100000
 pkeep = 1.0
-summary_iters = 100
+summary_iters = 1000
 
 # Dataset
 
@@ -29,7 +29,7 @@ input_dimension = 1
 
 # Training II
 
-iters = epochs*epoch_size
+iters = 50000
 
 # Files
 
@@ -40,9 +40,9 @@ test_tfrecord_filename = "testmixed.tfrecord"
 
 # Miscs
 
-shuffle_capacity=50000
+shuffle_capacity=10*batch_size
 shuffle_threads=4
-shuffle_min_after_dequeue=10000
+shuffle_min_after_dequeue=5*batch_size
 
 # Net Params
 

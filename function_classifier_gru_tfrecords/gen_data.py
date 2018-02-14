@@ -186,36 +186,45 @@ def function_sequences_to_tfrecord(functionsequences, labels, filename):
 
     writer.close()
 
-def read_and_decode(filename_queue, batch_size, const_sequence_length, const_dim, capacity, num_threads, min_after_dequeue):
-
+def _read_tf_record(record_filename, sequence_shape, label_shape, sequence_dtype, label_dtype):
     reader = tf.TFRecordReader()
-    _, serialized_example = reader.read(filename_queue)
+    _, serialized_example = reader.read(record_filename)
 
-    features = tf.parse_single_example(
+    data = tf.parse_single_example(
       serialized_example,
       # Defaults are not specified since both keys are required.
-      features={
+      features = {
         'seqlen': tf.FixedLenFeature([], tf.int64),
         'dim': tf.FixedLenFeature([], tf.int64),
         'seq_raw': tf.FixedLenFeature([], tf.string),
         'label_raw': tf.FixedLenFeature([], tf.string)
         })
 
-    # Reshape to proper dimensions
-    seqlen = tf.cast(features['seqlen'], tf.int64)
-    dim = tf.cast(features['dim'], tf.int64)
-    sequence_bytes = tf.decode_raw(features['seq_raw'], tf.float32)
-    label_bytes = tf.decode_raw(features['label_raw'], tf.uint8)
+        # Reshape to proper dimensions
+    seqlen = tf.cast(data['seqlen'], tf.int64)
+    dim = tf.cast(data['dim'], tf.int64)
+    sequence_bytes = tf.decode_raw(data['seq_raw'], tf.float32)
+    label_bytes = tf.decode_raw(data['label_raw'], tf.uint8)
+
+    sequence = tf.reshape(sequence_bytes, sequence_shape)
+    label = tf.reshape(label_bytes, label_shape)
+
+    return sequence, label
+
+
+def read_and_decode(filename_queue, batch_size, const_sequence_length, const_dim, capacity, num_threads, min_after_dequeue):
 
     sequence_shape = tf.stack([const_sequence_length, const_dim])
     label_shape = tf.stack([1])
     sequence_shape_const = tf.constant((const_sequence_length, const_dim), dtype=tf.float32)
     label_shape_const = tf.constant((1), dtype=tf.float32)
-    sequence = tf.reshape(sequence_bytes, sequence_shape)
-    label = tf.reshape(label_bytes, label_shape)
+    sequence_dtype = tf.float32
+    label_dtype = tf.uint8
+
+    readers = [_read_tf_record(filename_queue, sequence_shape, label_shape, sequence_dtype, label_dtype) for _ in range(num_threads)]
 
     # create and shuffle batch
-    sequences, labels = tf.train.shuffle_batch([sequence, label], batch_size, capacity, num_threads, min_after_dequeue)
+    sequences, labels = tf.train.shuffle_batch_join(readers, batch_size, capacity, num_threads, min_after_dequeue)
     sequences.set_shape([batch_size, const_sequence_length, const_dim])
     labels.set_shape([batch_size, 1])
 
