@@ -62,6 +62,7 @@ def all_sequences_from_datasequence(datasequences, sequence_length, controlvals_
     if(link_size*controlvals_num != sequence_length):
         raise ValueError("link_size * chain_size must equal sequence_length!")
 
+    sequence_length = sequence_length + 1
     total_length = datasequences.shape[0]
     dim = datasequences.shape[1]
     seqnum = total_length - sequence_length
@@ -74,10 +75,11 @@ def all_sequences_from_datasequence(datasequences, sequence_length, controlvals_
         sequences[i,:,:] = seq
         # calculate controlvals
         for j in range(controlvals_num):
-            controlvals[i,j,:] = seq[ (j+1)*link_size -1,:]
+            controlvals[i,j,:] = seq[ (j+1)*link_size,:]
 
     # sequences: [ TOTAL_SEQUENCE_NUM, SEQUENCE_LENGTH, DIMENSION ]
     # controlvals:    [ TOTAL_SEQUENCE_NUM, CONTROLVALS_NUM, DIMENSION ]
+    sequences = np.delete(sequences, sequence_length-1, axis=1)
     return sequences, controlvals
 
 def rand_sequences_from_datasequences(datasequences, controlvals, seqnum, delete=False):
@@ -99,7 +101,7 @@ def rand_sequences_from_datasequences(datasequences, controlvals, seqnum, delete
 
     # seqar: [ SEQ_NUM, SEQUENCE_LENGTH, DIMENSION ]
     # controlvals: [ SEQ_NUM, CONTROLVALS_NUM, DIMENSION ]
-    return seqar, controlvals
+    return seqar, newcontrolvals
 
 # rewrite this with variable shape
 def function_sequences_to_tfrecord(functionsequences, labels, filename):

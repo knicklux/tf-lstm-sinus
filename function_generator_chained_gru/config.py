@@ -4,8 +4,8 @@ import math
 
 # Training
 
-learning_rate = 0.0001
-decay_rate = 0.94
+learning_rate = 0.005
+decay_rate = 2
 decay_steps = 100000
 pkeep = 1.0
 summary_iters = 1000
@@ -25,7 +25,7 @@ dimension = 2
 
 # Training II
 
-iters = 20000
+iters = 50000
 
 # Files
 
@@ -42,8 +42,8 @@ shuffle_min_after_dequeue=50*batch_size
 
 # Net Params
 
-sequence_length = 200
-chain_size = 5
+sequence_length = 60
+chain_size = 20
 link_size = int(sequence_length/chain_size)
 hidden_layer_size = 5
-hidden_layer_depth = 2
+hidden_layer_depth = 1

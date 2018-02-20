@@ -12,7 +12,7 @@ import config
 from function_generator_chained_gru import lstmnet_chain
 import gen_data
 
-GENERATE_DATA = True
+GENERATE_DATA = False
 
 def main():
 
@@ -28,7 +28,7 @@ def main():
         # List of lambdas: [lambda x: math.sin(x)]
         gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02, lambda x: math.sin(x),
                                        config.data_tmp_folder + 'sine.csv')
-        gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02, lambda x: x*0.8 + 0.04,
+        gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02, lambda x: 0.4*x+1,
                                        config.data_tmp_folder + 'lin.csv')
 
     print("Reading Data from CSV")

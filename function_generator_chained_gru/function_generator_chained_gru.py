@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import layers
 from tensorflow.contrib import rnn
+from tensorflow.contrib import cudnn_rnn
 
 import config
 import gen_data
@@ -18,7 +19,7 @@ def lstmnet_link(input_tensor, output_tensor, Hin, pkeep, phase, reuse_weights):
         X = tf.reshape(input_tensor, [config.batch_size, config.link_size, config.dimension])
         # X: [ BATCH_SIZE, LINK_SIZE, DIMENSION]
 
-        cells = [rnn.GRUCell(config.hidden_layer_size) for _ in range(config.hidden_layer_depth)]
+        cells = [rnn.GRUBlockCell(config.hidden_layer_size) for _ in range(config.hidden_layer_depth)]
         # "naive dropout" implementation
         dropcells = [rnn.DropoutWrapper(cell,input_keep_prob=pkeep) for cell in cells]
         multicell = rnn.MultiRNNCell(dropcells, state_is_tuple=False)
@@ -35,8 +36,7 @@ def lstmnet_link(input_tensor, output_tensor, Hin, pkeep, phase, reuse_weights):
         last = tf.gather(output, int(output.get_shape()[0])-1)
         # last: [ BATCH_SIZE, DIMENSION ]
 
-        # Last layer to evaluate INTERNALSIZE LSTM output to logits
-        # One-Hot-Encoding the answer using new API:
+        # Last layer to evaluate INTERNALSIZE LSTM output to function values
         Y = layers.fully_connected(last, config.dimension, activation_fn=None, reuse=reuse_weights, scope='NeuralNet')
         # Y: [ BATCH_SIZE, DIMENSION ]
 
@@ -88,12 +88,15 @@ def lstmnet_chain(input_tensor, output_tensor, global_step, phase, reuse_weights
         starter_learning_rate = config.learning_rate
         learning_rate = tf.train.inverse_time_decay(starter_learning_rate, global_step, config.decay_steps, config.decay_rate)
 
-        error = tf.reduce_mean(tf.losses.mean_squared_error(y_, Y))
-        train_op = tf.train.RMSPropOptimizer(learning_rate=config.learning_rate, decay=config.decay_rate).minimize(error)
+        loss = tf.reduce_mean(tf.losses.mean_squared_error(y_, Y))
+        single_vector_error = loss / (config.batch_size * config.chain_size)
+        train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
     # accuracy
     with tf.name_scope('Summary') as scope:
-        tf.summary.scalar(phase + "/error", error)
+        tf.summary.scalar(phase + "/loss", loss)
+        # It's called loss bcause TF People call it loss instead of error.
+        tf.summary.scalar(phase + "/single_vector_loss", single_vector_error)
         summary_op = tf.summary.merge_all()
 
     return Hin, pkeep, train_op, summary_op
