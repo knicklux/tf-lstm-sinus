@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 import config
-from function_generator_chained_gru import lstmnet_chain
+from function_classifier_gru import lstmnet
 import gen_data
 
 GENERATE_DATA = False
@@ -28,41 +28,42 @@ def main():
         # List of lambdas: [lambda x: math.sin(x)]
         gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02, lambda x: math.sin(x),
                                        config.data_tmp_folder + 'sine.csv')
-        gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02, lambda x: 0.4*x+1,
+        gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02, lambda x: x*0.8 + 0.04,
                                        config.data_tmp_folder + 'lin.csv')
 
         print("Reading Data from CSV")
         sine_x, data_sine = gen_data.read_function_vals_csv('x', 'y', config.data_tmp_folder + 'sine.csv')
         # sine_x: [TOTAL_LENGTH, 1]
-        # data_sine:  [TOTAL_LENGTH, 1]
+        # data_sine:  [TOTAL_LENGTH, INPUT_DIMENSION]
         lin_x, data_lin = gen_data.read_function_vals_csv('x', 'y', config.data_tmp_folder + 'lin.csv')
         # lin_x: [TOTAL_LENGTH, 1]
-        # data_lin:  [TOTAL_LENGTH, 1]
+        # data_lin:  [TOTAL_LENGTH, INPUT_DIMENSION]
 
         print("Writing TFRecords")
-        datasequences = np.concatenate([data_sine, data_lin], 1)
-        # datasequences: [ TOTAL_LENGTH, DIMENSION ]
+        datasequences = np.stack((data_sine, data_lin), axis=0)
+        # datasequences: [ OUTPUT_DIMENSION, TOTAL_LENGTH, INPUT_DIMENSION ]
 
-        functionsequences, controlvals = gen_data.all_sequences_from_datasequence(datasequences, config.sequence_length, config.chain_size, config.link_size)
-        # functionsequences: [ TOTAL_SEQUENCE_NUM, SEQUENCE_LENGTH, DIMENSION ]
-        # controlvals: [ TOTAL_SEQUENCE_NUM, CHAIN_SIZE, DIMENSION ]
+        functionsequences, labels = gen_data.all_sequences_from_datasequence(datasequences, config.sequence_length)
+        # functionsequences: [ TOTAL_SEQUENCE_NUM, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+        # labels: [ TOTAL_SEQUENCE_NUM ]
         # Set apart some test data
-        test_functionsequences, test_controlvals = gen_data.rand_sequences_from_datasequences(functionsequences, controlvals, config.test_epoch_size, True)
-        # test_functionsequences: [ TEST_EPOCH_SIZE, SEQUENCE_LENGTH, DIMENSION ]
-        # test_controlvals: [ TEST_EPOCH_SIZE, CHAIN_SIZE, DIMENSION ]
-        # functionsequences: [ SEQUENCE_NUM, SEQUENCE_LENGTH, DIMENSION ]
-        # controlvals: [ SEQUENCE_NUM, CHAIN_SIZE, DIMENSION ]
+        test_functionsequences, test_labels = gen_data.rand_sequences_from_datasequences(functionsequences, labels, config.test_epoch_size, True)
+        # test_functionsequences: [ TEST_EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+        # test_labels: [ TEST_EPOCH_SIZE ]
+        # functionsequences: [ SEQUENCE_NUM, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+        # labels: [ SEQUENCE_NUM ]
 
-        gen_data.function_sequences_to_tfrecord(functionsequences, controlvals, config.data_tmp_folder+config.data_tfrecord_filename)
-        gen_data.function_sequences_to_tfrecord(test_functionsequences, test_controlvals, config.data_tmp_folder+config.test_tfrecord_filename)
+        gen_data.function_sequences_to_tfrecord(functionsequences, labels, config.data_tmp_folder+config.data_tfrecord_filename)
+        gen_data.function_sequences_to_tfrecord(test_functionsequences, test_labels, config.data_tmp_folder+config.test_tfrecord_filename)
 
-    print("Configuring Input Queue")
+    print('Setup Input Queue')
     with tf.name_scope('Input_Queue') as scope:
 
         data_queue = tf.train.string_input_producer([config.data_tmp_folder + config.data_tfrecord_filename])
         test_queue = tf.train.string_input_producer([config.data_tmp_folder + config.test_tfrecord_filename])
-        sequences_batch, labels_batch = gen_data.read_and_decode(data_queue, config.batch_size, config.sequence_length, config.chain_size, config.dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
-        test_sequences_batch, test_labels_batch = gen_data.read_and_decode(test_queue, config.batch_size, config.sequence_length, config.chain_size, config.dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
+
+        sequences_batch, labels_batch = gen_data.read_and_decode(data_queue, config.batch_size, config.sequence_length, config.input_dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
+        test_sequences_batch, test_labels_batch = gen_data.read_and_decode(test_queue, config.batch_size, config.sequence_length, config.input_dimension, config.shuffle_capacity, config.shuffle_threads, config.shuffle_min_after_dequeue)
 
     # Global Step Counter
     with tf.name_scope('Global_Step') as scope:
@@ -77,8 +78,10 @@ def main():
                     config.hidden_layer_depth], dtype=np.float32)
     # Hin: [ BATCH_SIZE, INTERNALSIZE * NLAYERS ]
 
-    train_H, train_keep, train_step, train_summary_op = lstmnet_chain(sequences_batch, labels_batch, global_step, "Train", False)
-    test_H, test_keep, test_step, test_summary_op = lstmnet_chain(test_sequences_batch, test_labels_batch, global_step, "Test", True)
+    train_H, train_keep, train_step, train_summary_op = lstmnet(
+        sequences_batch, labels_batch, global_step, "train", False)
+    test_H, test_keep, test_step, test_summary_op = lstmnet(
+        test_sequences_batch, test_labels_batch, global_step, "test", True)
 
     # Setup logging with Tensorboard
     print("Setup Tensorboard")
@@ -91,7 +94,7 @@ def main():
     # Limit used gpu memory.
     print("Configuring Tensorflow")
     tfconfig = tf.ConfigProto()
-    tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.25
+    # tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.75
     init_op = tf.group(tf.global_variables_initializer(),
                    tf.local_variables_initializer())
 

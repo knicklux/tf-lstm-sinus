@@ -31,30 +31,30 @@ def main():
         gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02, lambda x: x*0.8 + 0.04,
                                        config.data_tmp_folder + 'lin.csv')
 
-    print("Reading Data from CSV")
-    sine_x, data_sine = gen_data.read_function_vals_csv('x', 'y', config.data_tmp_folder + 'sine.csv')
-    # sine_x: [TOTAL_LENGTH, 1]
-    # data_sine:  [TOTAL_LENGTH, INPUT_DIMENSION]
-    lin_x, data_lin = gen_data.read_function_vals_csv('x', 'y', config.data_tmp_folder + 'lin.csv')
-    # lin_x: [TOTAL_LENGTH, 1]
-    # data_lin:  [TOTAL_LENGTH, INPUT_DIMENSION]
+        print("Reading Data from CSV")
+        sine_x, data_sine = gen_data.read_function_vals_csv('x', 'y', config.data_tmp_folder + 'sine.csv')
+        # sine_x: [TOTAL_LENGTH, 1]
+        # data_sine:  [TOTAL_LENGTH, INPUT_DIMENSION]
+        lin_x, data_lin = gen_data.read_function_vals_csv('x', 'y', config.data_tmp_folder + 'lin.csv')
+        # lin_x: [TOTAL_LENGTH, 1]
+        # data_lin:  [TOTAL_LENGTH, INPUT_DIMENSION]
 
-    print("Writing TFRecords")
-    datasequences = np.stack((data_sine, data_lin), axis=0)
-    # datasequences: [ OUTPUT_DIMENSION, TOTAL_LENGTH, INPUT_DIMENSION ]
+        print("Writing TFRecords")
+        datasequences = np.stack((data_sine, data_lin), axis=0)
+        # datasequences: [ OUTPUT_DIMENSION, TOTAL_LENGTH, INPUT_DIMENSION ]
 
-    functionsequences, labels = gen_data.all_sequences_from_datasequence(datasequences, config.sequence_length)
-    # functionsequences: [ TOTAL_SEQUENCE_NUM, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-    # labels: [ TOTAL_SEQUENCE_NUM ]
-    # Set apart some test data
-    test_functionsequences, test_labels = gen_data.rand_sequences_from_datasequences(functionsequences, labels, config.test_epoch_size, True)
-    # test_functionsequences: [ TEST_EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-    # test_labels: [ TEST_EPOCH_SIZE ]
-    # functionsequences: [ SEQUENCE_NUM, SEQUENCE_LENGTH, INPUT_DIMENSION ]
-    # labels: [ SEQUENCE_NUM ]
+        functionsequences, labels = gen_data.all_sequences_from_datasequence(datasequences, config.sequence_length)
+        # functionsequences: [ TOTAL_SEQUENCE_NUM, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+        # labels: [ TOTAL_SEQUENCE_NUM ]
+        # Set apart some test data
+        test_functionsequences, test_labels = gen_data.rand_sequences_from_datasequences(functionsequences, labels, config.test_epoch_size, True)
+        # test_functionsequences: [ TEST_EPOCH_SIZE, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+        # test_labels: [ TEST_EPOCH_SIZE ]
+        # functionsequences: [ SEQUENCE_NUM, SEQUENCE_LENGTH, INPUT_DIMENSION ]
+        # labels: [ SEQUENCE_NUM ]
 
-    gen_data.function_sequences_to_tfrecord(functionsequences, labels, config.data_tmp_folder+config.data_tfrecord_filename)
-    gen_data.function_sequences_to_tfrecord(test_functionsequences, test_labels, config.data_tmp_folder+config.test_tfrecord_filename)
+        gen_data.function_sequences_to_tfrecord(functionsequences, labels, config.data_tmp_folder+config.data_tfrecord_filename)
+        gen_data.function_sequences_to_tfrecord(test_functionsequences, test_labels, config.data_tmp_folder+config.test_tfrecord_filename)
 
     with tf.name_scope('Input_Queue') as scope:
 
@@ -93,7 +93,7 @@ def main():
     # Limit used gpu memory.
     print("Configuring Tensorflow")
     tfconfig = tf.ConfigProto()
-    # tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.75
+    tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.25
     init_op = tf.group(tf.global_variables_initializer(),
                    tf.local_variables_initializer())
 
