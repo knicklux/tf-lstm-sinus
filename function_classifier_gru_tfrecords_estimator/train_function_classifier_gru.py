@@ -133,7 +133,6 @@ def main(argv):
                                             'feature_columns': feature_cols,
                                             'test_feature_columns': test_feature_cols,
                                             'Hin': Hin,
-                                            'batch_size': config.batch_size,
                                             'sequence_length': config.sequence_length,
                                             'input_dimension': config.input_dimension,
                                             'hidden_layer_size': config.hidden_layer_size,
@@ -183,7 +182,6 @@ def main(argv):
                                              params={
                                                  'feature_columns': feature_cols,
                                                  'Hin': Hin,
-                                                 'batch_size': config.batch_size,
                                                  'sequence_length': config.sequence_length,
                                                  'input_dimension': config.input_dimension,
                                                  'hidden_layer_size': config.hidden_layer_size,

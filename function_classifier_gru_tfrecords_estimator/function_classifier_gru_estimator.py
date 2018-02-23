@@ -47,7 +47,6 @@ from tensorflow.python.ops.metrics_impl import metric_variable
 # test_labels (if do_test)
 # feature_columns
 # Hin
-# batch_size
 # sequence_length
 # input_dimension
 # hidden_layer_size
