@@ -7,16 +7,16 @@ import math
 learning_rate = 0.0001
 decay_rate = 0.9
 decay_steps = 100000
-pkeep = 0.7
+pkeep = 1.0
 summary_iters = 100
 
 # Dataset
 
 labels = {'sine', 'linear'}
-batch_size = 200
+batch_size = 800
 epoch_size = 10000
 epochs = 10
-test_batch_size = 200
+test_batch_size = 800
 test_epoch_size = 2000
 test_epochs = int(math.ceil((epoch_size*epochs) / (test_epoch_size*summary_iters)))
 
@@ -29,7 +29,7 @@ input_dimension = 2
 
 # Training II
 
-iters = 20000
+iters = 50000
 seed = 1234
 
 # Files
@@ -44,9 +44,10 @@ test_tfrecord_filename = "testmixed.tfrecord"
 shuffle_capacity=500*batch_size
 shuffle_threads=4
 shuffle_min_after_dequeue=50*batch_size
+parallel_iters=256
 
 # Net Params
 
 sequence_length = 100
 hidden_layer_size = 6
-hidden_layer_depth = 2
+hidden_layer_depth = 1

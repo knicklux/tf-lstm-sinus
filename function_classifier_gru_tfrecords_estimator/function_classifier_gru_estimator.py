@@ -4,26 +4,6 @@ from tensorflow.contrib import layers
 from tensorflow.contrib import rnn
 from tensorflow.python.ops.metrics_impl import metric_variable
 
-# Major shortcoming of estimators: They do not plot test loss during training.
-# However, test loss is a major indication for overfitting.
-# So how could this be solved?
-
-# 1) Training hook
-# 2) Separate loss op
-# 3) Test data input queue in params dict
-# Sound solution. Test data would be optional and only affect testing
-# 4) Train a bit, test a bit, train a bit, test a bit
-# And wait for the HDD while storing and restoring parameters
-# On the other hand... Not much work involved :^)
-# Chose a ... variant of 3)
-
-# How to specify different pkeeps during training for testin?
-# 1) Two networks... plausible, but might cause problems with var reuse
-# and export/import
-# 2) Set pkeep to something else
-# 3) Something like feed_dict
-# Chose 1)
-
 # lstmnet:
 
 # features dict:
@@ -55,8 +35,29 @@ from tensorflow.python.ops.metrics_impl import metric_variable
 # learning_rate
 # decay_rate
 # decay_steps
+# parallel_iters
 # pkeep
 # do_test
+
+# Major shortcoming of estimators: They do not plot test loss during training.
+# However, test loss is a major indication for overfitting.
+# So how could this be solved?
+
+# 1) Training hook
+# 2) Separate loss op
+# 3) Test data input queue in params dict
+# Sound solution. Test data would be optional and only affect testing
+# 4) Train a bit, test a bit, train a bit, test a bit
+# And wait for the HDD while storing and restoring parameters
+# On the other hand... Not much work involved :^)
+# Chose a ... variant of 3)
+
+# How to specify different pkeeps during training for testing?
+# 1) Two networks... plausible, but might cause problems with var reuse
+# and export/import
+# 2) Set pkeep to something else
+# 3) Something like feed_dict
+# Chose 1)
 
 
 def _lstmnet(
@@ -93,7 +94,8 @@ def _lstmnet(
         multicell = rnn.DropoutWrapper(multicell, output_keep_prob=pkeep)
 
         Yr, H = tf.nn.dynamic_rnn(multicell, X, dtype=tf.float32,
-                                  initial_state=Hin, scope='NeuralNet')
+                                  initial_state=Hin, scope='NeuralNet',
+                                  parallel_iterations=params['parallel_iters'])
         H = tf.identity(H, name='H')  # just to give it a name
         # Yr: [ BATCH_SIZE, SEQUENCE_LENGTHLEN, INTERNALSIZE ]
         # H:  [ BATCH_SIZE, INTERNALSIZE*NLAYERS ] # this is the last state in the sequence
@@ -181,15 +183,31 @@ def lstmnet(
             test_batch_accuracy_op = tf.assign(test_batch_accuracy, tf.reduce_mean(
                 tf.cast(test_correct_prediction, tf.float32), name='test_batch_acc_'))
 
+    with tf.variable_scope('Training') as scope:
+
+        learning_rate = metric_variable([], tf.float32, name='learning_rate')
+        starter_learning_rate = params['learning_rate']
+        learning_rate_ti = tf.train.inverse_time_decay(starter_learning_rate,
+                                                    tf.train.get_global_step(),
+                                                    params['decay_steps'],
+                                                    params['decay_rate'])
+        learning_rate_ex = tf.train.exponential_decay(starter_learning_rate,
+                                                   tf.train.get_global_step(),
+                                                   params['decay_steps'],
+                                                   params['decay_rate'])
+        learning_rate = tf.assign(learning_rate, learning_rate_ex, name='learning_rate')
+
     with tf.variable_scope('Evaluation') as scope:
 
         metrics = {'train_streamed_accuracy': train_accuracy,
                    'train_batch_accuracy': (train_batch_accuracy_op, train_batch_accuracy_op),
                    'train_loss': (train_cross_entropy_op, train_cross_entropy_op),
+                   'learning_rate': (learning_rate, learning_rate),
                    }
         tf.summary.scalar('train_streamed_accuracy', train_accuracy[1])
         tf.summary.scalar('train_batch_accuracy', train_batch_accuracy_op)
         tf.summary.scalar('train_loss', train_cross_entropy_op)
+        tf.summary.scalar('learning_rate', learning_rate)
 
         if do_test:
             test_metrics = {'test_streamed_accuracy': test_accuracy,
@@ -208,13 +226,10 @@ def lstmnet(
 
     with tf.variable_scope('Training') as scope:
 
-        starter_learning_rate = params['learning_rate']
-        learning_rate = tf.train.inverse_time_decay(starter_learning_rate,
-                                                    tf.train.get_global_step(),
-                                                    params['decay_steps'],
-                                                    params['decay_rate'])
-        optimizer = tf.train.RMSPropOptimizer(
+        optimizer_RMS = tf.train.RMSPropOptimizer(
             learning_rate=params['learning_rate'], decay=params['decay_rate'])
+        optimizer_adam = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        optimizer = optimizer_adam
         train_op = optimizer.minimize(cross_entropy, global_step=tf.train.get_global_step())
 
     return tf.estimator.EstimatorSpec(mode, loss=cross_entropy, train_op=train_op)

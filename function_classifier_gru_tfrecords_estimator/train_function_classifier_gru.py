@@ -62,10 +62,12 @@ def main(argv):
             os.makedirs(config.data_tmp_folder)
         print("Generating Data CSV")
         # List of lambdas: [lambda x: math.sin(x)]
-        gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02,
+        gen_data.gen_function_vals_csv(-50,
+                                       -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02,
                                        lambda x: math.sin(x),
                                        config.data_tmp_folder + 'sine.csv')
-        gen_data.gen_function_vals_csv(-50, -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02,
+        gen_data.gen_function_vals_csv(-50,
+                                       -50 + (config.epoch_size + config.test_epoch_size + config.sequence_length)*0.02, 0.02,
                                        lambda x: x*0.8 + 0.04,
                                        config.data_tmp_folder + 'lin.csv')
 
@@ -141,6 +143,7 @@ def main(argv):
                                             'learning_rate': config.learning_rate,
                                             'decay_rate': config.decay_rate,
                                             'decay_steps': config.decay_steps,
+                                            'parallel_iters': config.parallel_iters,
                                             'pkeep': config.pkeep,
                                             'do_test': True,
                                         },
@@ -190,6 +193,7 @@ def main(argv):
                                                  'learning_rate': config.learning_rate,
                                                  'decay_rate': config.decay_rate,
                                                  'decay_steps': config.decay_steps,
+                                                 'parallel_iters': config.parallel_iters,
                                                  'pkeep': 1.0,
                                                  'do_test': False
                                              },
