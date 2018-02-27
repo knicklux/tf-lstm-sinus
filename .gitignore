@@ -1,3 +1,12 @@
+# TF stuff
+*/data
+*/checkpoints
+*/log
+
+# IDE Stuff
+.idea
+.vscode
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
