@@ -2,6 +2,8 @@ import tensorflow as tf
 import numpy as np
 import math
 
+# Todo: Split config to train, test and deploy
+
 # Training
 
 learning_rate = 0.0001
@@ -12,11 +14,12 @@ summary_iters = 100
 
 # Dataset
 
-batch_size = 50
+batch_size = 800
 epoch_size = 10000
 test_batch_size = 800
 test_epoch_size = 2000
 eval_seq_num = 12
+eval_batch_size = 1
 
 # Now the input dimension of the LSTM for one cell without H
 # So the dimension of your function's output
@@ -48,6 +51,6 @@ parallel_iters=256
 sequence_length = 50
 encoder_hidden_layer_size = 20
 encoder_hidden_layer_depth = 2
-bottleneck_size = 15
-decoder_hidden_layer_size = 20
-decoder_hidden_layer_depth = 1
+bottleneck_size = encoder_hidden_layer_size * encoder_hidden_layer_depth
+decoder_hidden_layer_size = encoder_hidden_layer_size
+decoder_hidden_layer_depth = encoder_hidden_layer_depth

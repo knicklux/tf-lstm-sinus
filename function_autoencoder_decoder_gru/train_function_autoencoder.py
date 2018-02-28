@@ -11,6 +11,7 @@ import tensorflow as tf
 import config
 from function_autoencoder_gru import lstmnet
 from function_convautoencoder_gru import convlstmnet
+from function_autoencoder_gru_v2 import lstmnetv2
 import gen_data
 
 # Implementation with tfrecords and compliance with tf estimator API
@@ -52,7 +53,7 @@ def classifier_gru_train_in_fn(train_file, test_file,
 def main(argv):
 
     timestamp = str(math.trunc(time.time()))
-    checkpoint_location = config.checkpoint_path + "/evalnet4"
+    checkpoint_location = config.checkpoint_path + "/evalv2net1"
     # Create checkpoint+checkpoint_path
     if not os.path.exists(checkpoint_location):
         os.makedirs(checkpoint_location)
@@ -181,7 +182,7 @@ def main(argv):
     # Hin: [ BATCH_SIZE, DECODER_INTERNALSIZE * DECODER_NLAYERS ]
 
     # Model
-    classifier = tf.estimator.Estimator(model_fn=lstmnet,
+    classifier = tf.estimator.Estimator(model_fn=lstmnetv2,
                                         params={
                                             'feature_columns': feature_cols,
                                             'test_feature_columns': test_feature_cols,
@@ -214,12 +215,19 @@ def main(argv):
 
     print('Evaluating reconstructed net for verification')
 
-    eval_classifier = tf.estimator.Estimator(model_fn=lstmnet,
+    pred_en_Hin = np.zeros([config.eval_batch_size, config.encoder_hidden_layer_size *
+                    config.encoder_hidden_layer_depth], dtype=np.float32)
+    # Hin: [ BATCH_SIZE, ENCODER_INTERNALSIZE * ENCODER_NLAYERS ]
+    pred_de_Hin = np.zeros([config.eval_batch_size, config.decoder_hidden_layer_size *
+                    config.decoder_hidden_layer_depth], dtype=np.float32)
+    # Hin: [ BATCH_SIZE, DECODER_INTERNALSIZE * DECODER_NLAYERS ]
+
+    eval_classifier = tf.estimator.Estimator(model_fn=lstmnetv2,
                                              params={
                                                  'feature_columns': feature_cols,
                                                  'test_feature_columns': test_feature_cols,
-                                                 'encoder_Hin': en_Hin,
-                                                 'decoder_Hin': de_Hin,
+                                                 'encoder_Hin': pred_en_Hin,
+                                                 'decoder_Hin': pred_de_Hin,
                                                  'sequence_length': config.sequence_length,
                                                  'dimension': config.dimension,
                                                  'encoder_hidden_layer_size': config.encoder_hidden_layer_size,
@@ -239,7 +247,7 @@ def main(argv):
     # Read some functions from TFRecords
     print("Filename:")
     print(config.data_tmp_folder + config.data_tfrecord_filename)
-    tfrecords_filename = config.data_tmp_folder + config.data_tfrecord_filename
+    tfrecords_filename = config.data_tmp_folder + config.test_tfrecord_filename
     record_iterator = tf.python_io.tf_record_iterator(path=tfrecords_filename)
 
     for idx in range(config.eval_seq_num):
@@ -293,7 +301,7 @@ def main(argv):
         plt.show(block=True)
 
         # Prediction
-        sequence = np.tile(sequence[np.newaxis,:], [config.batch_size, 1])
+        sequence = np.tile(sequence[np.newaxis,:], [config.eval_batch_size, 1])
         # Find out, how to use a batch size of 1 ...
         predict_dict = {'train_features': {'sequence_values': sequence}}
         def pipe_eval(): return predict_dict, None
