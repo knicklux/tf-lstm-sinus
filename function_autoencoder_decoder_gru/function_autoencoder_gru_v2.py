@@ -5,6 +5,9 @@ from tensorflow.contrib import rnn
 from tensorflow.contrib import seq2seq
 from tensorflow.python.ops.metrics_impl import metric_variable
 
+from fixed_len_numeric_training_helper import fixed_len_sample_ids_shape
+from fixed_len_numeric_training_helper import create_fixed_len_numeric_training_helper
+
 # lstmnet:
 
 # features dict:
@@ -29,6 +32,7 @@ from tensorflow.python.ops.metrics_impl import metric_variable
 # feature_columns
 # encoder_Hin
 # decoder_Hin
+# decoder_inital_time_sample
 # sequence_length
 # dimension
 # encoder_hidden_layer_size
@@ -39,6 +43,7 @@ from tensorflow.python.ops.metrics_impl import metric_variable
 # learning_rate
 # decay_rate
 # decay_steps
+# max_gradient_norm
 # parallel_iters
 # pkeep
 # do_test
@@ -76,21 +81,31 @@ def _lstmnet(
             scope.reuse_variables()
 
         if(mode == tf.estimator.ModeKeys.TRAIN and not is_test):
+            # Train graph
             pkeep = params['pkeep']
         else:
+            # Test or inference graph
             pkeep = 1.0
 
         x = tf.feature_column.input_layer(
             features,
             feature_columns=params['feature_columns'])
-        print(x)
         X = tf.reshape(x, shape=[x.get_shape()[0],
                                  params['sequence_length'], params['dimension']])
         X = tf.identity(X, name='X')
-        print(X)
         # X: [ BATCH_SIZE, SEQUENCE_LENGTH, DIMENSION]
+        if labels is not None:
+            Labels = tf.reshape(labels, shape=[x.get_shape()[0], params['sequence_length'], params['dimension']])
+        else:
+            Labels = None
         encoder_Hin = params['encoder_Hin']
         # encoder_Hin: [ BATCH_SIZE, ENCODER_INTERNALSIZE * ENCODER_NLAYERS]
+        seqlen = tf.Variable(params['sequence_length'], name='seqlen')
+        seqlen = tf.reshape(seqlen, shape=[1])
+        seqdescr = tf.tile(seqlen, multiples=[x.get_shape()[0]])
+        # seqdescr: [ BATCHSIZE ]
+        inital_time_sample = params['decoder_inital_time_sample']
+        # inital_time_sample: [ BATCH_SIZE, DIMENSION ]
 
         encoder_cells = [rnn.GRUBlockCell(params['encoder_hidden_layer_size'])
                          for _ in range(params['encoder_hidden_layer_depth'])]
@@ -106,27 +121,11 @@ def _lstmnet(
                                                   parallel_iterations=params['parallel_iters'])
         encoded_H = tf.identity(encoded_H, name='encoded_H')  # just to give it a name
         encoded_Yr = tf.identity(encoded_Yr, name='endoded_Yr')
-        print(encoded_H)
-        print(encoded_Yr)
         # encoder_Yr: [ BATCH_SIZE, SEQUENCE_LENGTHLEN, ENCODER_INTERNALSIZE ]
         # encoder_H:  [ BATCH_SIZE, ENCODER_INTERNALSIZE * ENCODER_NLAYERS ] # this is the last state in the sequence
 
-        # Select last output.
-        encoder_output = tf.transpose(encoded_Yr, [1, 0, 2])
-        # encoder_output: [ SEEQLEN, BATCH_SIZE, ENCODER_INTERNALSIZE ]
-        last = tf.gather(encoder_output, int(encoder_output.get_shape()[0])-1)
-        # last: [ BATCH_SIZE , ENCODER_INTERNALSIZE ]
-
-        # Last layer to evaluate INTERNALSIZE LSTM output to bottleneck representation
-        bottleneck_Y = layers.fully_connected(
-            last, 30, activation_fn=tf.nn.relu)
-        encoded_Y = bottleneck_Y
-        bottleneck_Y = tf.identity(bottleneck_Y, 'bottleneck_Y')
-        print(bottleneck_Y)
-        # bottleneck: [ BATCH_SIZE, BOTTLENECK_SIZE ]
-
         encoded_V = tf.reshape(encoded_H, [x.get_shape()[0], -1])
-        # bottleneck: [ BATCH_SIZE, BOTTLENECK_SIZE ]
+        # encoded_V: [ BATCH_SIZE, BOTTLENECK_SIZE ]
 
     with tf.variable_scope('NetDecoder') as scope:
         if is_test:
@@ -137,19 +136,9 @@ def _lstmnet(
         else:
             pkeep = 1.0
 
-        decoder_Hin = encoded_H[:,:]
-        #decoder_Hin = tf.expand_dims(decoder_Hin, 0)
+        decoder_Hin = encoded_H
         # decoder_Hin: [ BATCH_SIZE, DECODER_INTERNALSIZE * DECODER_NLAYERS]
-        print(decoder_Hin)
 
-        print(X)
-        X_init = X[:,0,:]
-        print(X_init)
-        helper = tf.contrib.seq2seq.TrainingHelper(inputs=X,
-                                                   sequence_length=[params['sequence_length']],
-                                                   time_major=False)
-        print(helper.batch_size)
-        print(helper.sample_ids_shape)
         decoder_cells = [rnn.GRUBlockCell(params['decoder_hidden_layer_size'])
                          for _ in range(params['decoder_hidden_layer_depth'])]
         # "naive dropout" implementation
@@ -161,12 +150,13 @@ def _lstmnet(
         # dense layer to adjust dimensions
         decoder_multicell = rnn.OutputProjectionWrapper(decoder_multicell, params['dimension'])
 
+        custom_Helper = create_fixed_len_numeric_training_helper(inital_time_sample, params['sequence_length'], X.dtype)
+        helper = tf.contrib.seq2seq.TrainingHelper(inputs=Labels,
+                                                   sequence_length=seqdescr,
+                                                   time_major=False)
         decoder = seq2seq.BasicDecoder(cell=decoder_multicell,
-                                       helper=helper,
+                                       helper=custom_Helper,
                                        initial_state=decoder_Hin)
-        print('decoder:')
-        print(decoder)
-
         decoded_Yr, decoded_H, _ = tf.contrib.seq2seq.dynamic_decode(decoder=decoder,
                                                                   output_time_major=False,
                                                                   impute_finished=False,
@@ -174,12 +164,11 @@ def _lstmnet(
                                                                   parallel_iterations=params['parallel_iters'])
 
         decoded_Yr = decoded_Yr.rnn_output
-        decoded_Yr.set_shape([decoded_Yr.get_shape()[0],params['sequence_length'], decoded_Yr.get_shape()[2]])
         print('decoded_Yr')
         print(decoded_Yr)
-        print('decoded_H')
-        print(decoded_H)
-        decoded_H = tf.identity(decoded_H, name='decoded_H')  # just to give it a name
+        decoded_Yr.set_shape([decoded_Yr.get_shape()[0],params['sequence_length'], decoded_Yr.get_shape()[2]])
+        print(decoded_Yr)
+        decoded_H = tf.identity(decoded_H, name='decoded_H')
         decoded_Yr = tf.identity(decoded_Yr, name='decoded_Yr')
         # decoder_Yr: [ BATCH_SIZE, SEQUENCE_LENGTHLEN, DIMENSION ]
         # decoder_H:  [ BATCH_SIZE, DECODER_INTERNALSIZE * DECODER_NLAYERS ] # this is the last state in the sequence
@@ -236,19 +225,20 @@ def lstmnetv2(
         # Only use latest half of sequence for training
         # train_labels = train_labels[:,int(params['sequence_length']/2),:]
         # Y = Y[:,int(params['sequence_length']/2),:]
-        square_error = tf.reduce_sum(tf.losses.mean_squared_error(train_labels, Y))
+        square_error = tf.reduce_mean(tf.losses.mean_squared_error(train_features['sequence_values'], Y))
 
         # Again for proper metrics implementation
         train_square_error = metric_variable([], tf.float32, name='train_square_error')
-        train_square_error_op = tf.assign(train_square_error, tf.reduce_sum(
-            tf.losses.mean_squared_error(train_labels, Y)))
+        train_square_error_op = tf.assign(train_square_error, tf.reduce_mean(
+            tf.losses.mean_squared_error(train_features['sequence_values'], Y)))
 
         if do_test:
             test_square_error = metric_variable([], tf.float32, name='test_square_error')
-            test_square_error_op = tf.assign(test_square_error, tf.reduce_sum(
-                tf.losses.mean_squared_error(test_labels, test_Y)))
+            test_square_error_op = tf.assign(test_square_error, tf.reduce_mean(
+                tf.losses.mean_squared_error(test_features['sequence_values'], test_Y)))
 
     with tf.variable_scope('Training') as scope:
+        scope.reuse_variables()
 
         learning_rate = metric_variable([], tf.float32, name='learning_rate')
         starter_learning_rate = params['learning_rate']
@@ -268,7 +258,7 @@ def lstmnetv2(
             'train_square_error': (train_square_error_op, train_square_error_op),
             'learning_rate': (learning_rate_op, learning_rate_op),
         }
-        tf.summary.scalar('train_square_error', test_square_error_op)
+        tf.summary.scalar('train_square_error', train_square_error_op)
         tf.summary.scalar('learning_rate', learning_rate_op)
 
         if do_test:
@@ -285,10 +275,16 @@ def lstmnetv2(
 
     with tf.variable_scope('Training') as scope:
 
+        trainables = tf.trainable_variables()
+        gradients = tf.gradients(square_error, trainables)
+        clipped_gradients, _ = tf.clip_by_global_norm(gradients, params['max_gradient_norm'])
+
         optimizer_RMS = tf.train.RMSPropOptimizer(
             learning_rate=params['learning_rate'], decay=params['decay_rate'])
         optimizer_adam = tf.train.AdamOptimizer(learning_rate=learning_rate)
         optimizer = optimizer_RMS
-        train_op = optimizer.minimize(square_error, global_step=tf.train.get_global_step())
+
+        train_op = optimizer.apply_gradients(zip(clipped_gradients, trainables), global_step=tf.train.get_global_step())
+        #train_op = optimizer.minimize(square_error, global_step=tf.train.get_global_step())
 
     return tf.estimator.EstimatorSpec(mode, loss=square_error, train_op=train_op)

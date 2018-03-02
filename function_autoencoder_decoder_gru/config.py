@@ -6,11 +6,17 @@ import math
 
 # Training
 
-learning_rate = 0.0001
-decay_rate = 0.9
-decay_steps = 100000
-pkeep = 0.7
+learning_rate = 0.0003
+decay_rate = 0.94
+decay_steps = 1000
+max_gradient_norm = 5
+pkeep = 0.5
 summary_iters = 100
+
+# Training II
+
+iters = 50000
+seed = 1234
 
 # Dataset
 
@@ -18,7 +24,7 @@ batch_size = 800
 epoch_size = 10000
 test_batch_size = 800
 test_epoch_size = 2000
-eval_seq_num = 12
+eval_seq_num = 200
 eval_batch_size = 1
 
 # Now the input dimension of the LSTM for one cell without H
@@ -26,11 +32,6 @@ eval_batch_size = 1
 # This includes context information you may have passed
 # Remember: An autoencoder/decoder learns to reconstruct its input
 dimension = 1
-
-# Training II
-
-iters = 50000
-seed = 1234
 
 # Files
 

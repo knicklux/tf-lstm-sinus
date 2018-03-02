@@ -4,6 +4,8 @@ from tensorflow.contrib import layers
 from tensorflow.contrib import rnn
 from tensorflow.python.ops.metrics_impl import metric_variable
 
+# How not to build an autoencoder :^)
+
 # lstmnet:
 
 # features dict:
@@ -105,9 +107,9 @@ def _lstmnet(
 
         # Select last output.
         encoder_output = tf.transpose(encoder_Yr, [1, 0, 2])
-        # encoder_output: [ SEEQLEN, BATCH_SIZE, ENCODER_INTERNALSIZE]
+        # encoder_output: [ SEEQLEN, BATCH_SIZE, ENCODER_INTERNALSIZE ]
         last = tf.gather(encoder_output, int(encoder_output.get_shape()[0])-1)
-        # last: [ BATCH_SIZE , ENCODER_INTERNALSIZE]
+        # last: [ BATCH_SIZE , ENCODER_INTERNALSIZE ]
 
         # Last layer to evaluate INTERNALSIZE LSTM output to bottleneck representation
         bottleneck = layers.fully_connected(
@@ -142,14 +144,14 @@ def _lstmnet(
         # dense layer to adjust dimensions
         decoder_multicell = rnn.OutputProjectionWrapper(decoder_multicell, params['dimension'])
 
-        decoder_Yr, decoder_H = tf.nn.dynamic_rnn(decoder_multicell, tiled_bottleneck, dtype=tf.float32,
+        decoded_Yr, decoded_H = tf.nn.dynamic_rnn(decoder_multicell, tiled_bottleneck, dtype=tf.float32,
                                   initial_state=decoder_Hin, scope='NetDecoder',
                                   parallel_iterations=params['parallel_iters'])
-        decoder_H = tf.identity(decoder_H, name='decoder_H')  # just to give it a name
+        decoded_H = tf.identity(decoded_H, name='decoded_H')  # just to give it a name
         # decoder_Yr: [ BATCH_SIZE, SEQUENCE_LENGTHLEN, DIMENSION ]
         # decoder_H:  [ BATCH_SIZE, DECODER_INTERNALSIZE * DECODER_NLAYERS ] # this is the last state in the sequence
 
-    return decoder_Yr, encoded_V
+    return decoded_Yr, encoded_V # = bottleneck
 
 def lstmnet(
         features,  # This is batch_features from input_fn
@@ -184,6 +186,9 @@ def lstmnet(
 
     with tf.variable_scope('Prediction') as scope:
 
+        # Create model again with batch size of 1
+        # predicted_Y, predicted_V = _lstmnet(train_features, train_labels, mode, params, is_test=True)
+
         if mode == tf.estimator.ModeKeys.PREDICT:
             predictions = {
                 'encoding': encoded_V,
@@ -195,18 +200,18 @@ def lstmnet(
 
         # important training loss
         # Only use latest half of sequence for training
-        train_labels = train_labels[:,int(params['sequence_length']/2),:]
-        Y = Y[:,int(params['sequence_length']/2),:]
-        square_error = tf.reduce_sum(tf.losses.mean_squared_error(train_labels, Y))
+        # train_labels = train_labels[:,int(params['sequence_length']/2),:]
+        # Y = Y[:,int(params['sequence_length']/2),:]
+        square_error = tf.reduce_mean(tf.losses.mean_squared_error(train_labels, Y))
 
         # Again for proper metrics implementation
         train_square_error = metric_variable([], tf.float32, name='train_square_error')
-        train_square_error_op = tf.assign(train_square_error, tf.reduce_sum(
+        train_square_error_op = tf.assign(train_square_error, tf.reduce_mean(
             tf.losses.mean_squared_error(train_labels, Y)))
 
         if do_test:
             test_square_error = metric_variable([], tf.float32, name='test_square_error')
-            test_square_error_op = tf.assign(test_square_error, tf.reduce_sum(
+            test_square_error_op = tf.assign(test_square_error, tf.reduce_mean(
                 tf.losses.mean_squared_error(test_labels, test_Y)))
 
     with tf.variable_scope('Training') as scope:
@@ -229,7 +234,7 @@ def lstmnet(
             'train_square_error': (train_square_error_op, train_square_error_op),
             'learning_rate': (learning_rate_op, learning_rate_op),
                    }
-        tf.summary.scalar('train_square_error', test_square_error_op)
+        tf.summary.scalar('train_square_error', train_square_error_op)
         tf.summary.scalar('learning_rate', learning_rate_op)
 
         if do_test:
@@ -242,7 +247,7 @@ def lstmnet(
 
         if mode == tf.estimator.ModeKeys.EVAL:
             return tf.estimator.EstimatorSpec(
-                mode, loss=test_square_error, eval_metric_ops=metrics)
+                mode, loss=test_square_error_op, eval_metric_ops=metrics)
 
     with tf.variable_scope('Training') as scope:
 

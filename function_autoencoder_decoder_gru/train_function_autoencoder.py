@@ -30,21 +30,29 @@ def classifier_gru_train_in_fn(train_file, test_file,
     with tf.name_scope('Input_Queue') as scope:
 
         train_data_queue = tf.train.string_input_producer([train_file])
-        train_features, train_labels = gen_data.read_and_decode(
+        train_features_dict, train_labels = gen_data.read_and_decode(
             train_data_queue, batch_size, sequence_length, input_dimension, shuffle_capacity, shuffle_threads, shuffle_min_after_dequeue)
         test_data_queue = tf.train.string_input_producer([test_file])
-        test_features, test_labels = gen_data.read_and_decode(
+        test_features_dict, test_labels = gen_data.read_and_decode(
             test_data_queue, batch_size, sequence_length, input_dimension, shuffle_capacity, shuffle_threads, shuffle_min_after_dequeue)
-
-        data_dict = {
-            'train_features': train_features,
-            'test_features': test_features
-        }
+        train_features = train_features_dict['sequence_values']
+        test_features = test_features_dict['sequence_values']
 
         # Mentioned modification is here:
+        # Get elements 1 to seqlen-1 for features
+        train_features_s = tf.slice(train_features, [0,1,0],[train_features.shape[0], train_features.shape[1]-1,train_features.shape[2]])
+        test_features_s = tf.slice(test_features, [0,1,0],[test_features.shape[0], test_features.shape[1]-1,test_features.shape[2]])
+        # And elements 0 to seqlen -2 for labels
+        train_labels = tf.slice(train_features, [0,0,0],[train_features.shape[0], train_features.shape[1]-1,train_features.shape[2]])
+        test_labels = tf.slice(test_features, [0,0,0],[test_features.shape[0], test_features.shape[1]-1,test_features.shape[2]])
+
+        data_dict = {
+            'train_features': {'sequence_values': train_features_s},
+            'test_features': {'sequence_values': test_features_s}
+        }
         labels_dict = {
-            'train_labels': train_features['sequence_values'],
-            'test_labels': test_features['sequence_values']
+            'train_labels': train_labels,
+            'test_labels': test_labels
         }
 
     return data_dict, labels_dict
@@ -53,7 +61,7 @@ def classifier_gru_train_in_fn(train_file, test_file,
 def main(argv):
 
     timestamp = str(math.trunc(time.time()))
-    checkpoint_location = config.checkpoint_path + "/evalv2net1"
+    checkpoint_location = config.checkpoint_path + "/evalv2net8"
     # Create checkpoint+checkpoint_path
     if not os.path.exists(checkpoint_location):
         os.makedirs(checkpoint_location)
@@ -164,11 +172,11 @@ def main(argv):
 
     feature_cols = []
     feature_cols.append(tf.feature_column.numeric_column(key='sequence_values',
-                                                         shape=[config.sequence_length, config.dimension],
+                                                         shape=[config.sequence_length-1, config.dimension],
                                                          dtype=tf.float32))
     test_feature_cols = []
     test_feature_cols.append(tf.feature_column.numeric_column(key='sequence_values',
-                                                              shape=[config.sequence_length, config.dimension],
+                                                              shape=[config.sequence_length-1, config.dimension],
                                                               dtype=tf.float32))
 
     # Create model
@@ -180,6 +188,8 @@ def main(argv):
     de_Hin = np.zeros([config.batch_size, config.decoder_hidden_layer_size *
                     config.decoder_hidden_layer_depth], dtype=np.float32)
     # Hin: [ BATCH_SIZE, DECODER_INTERNALSIZE * DECODER_NLAYERS ]
+    decoder_inital_time_sample = np.zeros([config.batch_size, config.dimension], dtype=np.float32)
+    # decoder_inital_time_sample: [ DIMENSION ]
 
     # Model
     classifier = tf.estimator.Estimator(model_fn=lstmnetv2,
@@ -188,7 +198,8 @@ def main(argv):
                                             'test_feature_columns': test_feature_cols,
                                             'encoder_Hin': en_Hin,
                                             'decoder_Hin': de_Hin,
-                                            'sequence_length': config.sequence_length,
+                                            'decoder_inital_time_sample': decoder_inital_time_sample,
+                                            'sequence_length': config.sequence_length-1,
                                             'dimension': config.dimension,
                                             'encoder_hidden_layer_size': config.encoder_hidden_layer_size,
                                             'encoder_hidden_layer_depth': config.encoder_hidden_layer_depth,
@@ -198,6 +209,7 @@ def main(argv):
                                             'learning_rate': config.learning_rate,
                                             'decay_rate': config.decay_rate,
                                             'decay_steps': config.decay_steps,
+                                            'max_gradient_norm': config.max_gradient_norm,
                                             'parallel_iters': config.parallel_iters,
                                             'pkeep': config.pkeep,
                                             'do_test': True,
@@ -221,6 +233,8 @@ def main(argv):
     pred_de_Hin = np.zeros([config.eval_batch_size, config.decoder_hidden_layer_size *
                     config.decoder_hidden_layer_depth], dtype=np.float32)
     # Hin: [ BATCH_SIZE, DECODER_INTERNALSIZE * DECODER_NLAYERS ]
+    decoder_inital_time_sample = np.zeros([config.batch_size, config.dimension], dtype=np.float32)
+    # decoder_inital_time_sample: [ DIMENSION ]
 
     eval_classifier = tf.estimator.Estimator(model_fn=lstmnetv2,
                                              params={
@@ -228,7 +242,8 @@ def main(argv):
                                                  'test_feature_columns': test_feature_cols,
                                                  'encoder_Hin': pred_en_Hin,
                                                  'decoder_Hin': pred_de_Hin,
-                                                 'sequence_length': config.sequence_length,
+                                                 'decoder_inital_time_sample': decoder_inital_time_sample,
+                                                 'sequence_length': config.sequence_length-1,
                                                  'dimension': config.dimension,
                                                  'encoder_hidden_layer_size': config.encoder_hidden_layer_size,
                                                  'encoder_hidden_layer_depth': config.encoder_hidden_layer_depth,
@@ -238,6 +253,7 @@ def main(argv):
                                                  'learning_rate': config.learning_rate,
                                                  'decay_rate': config.decay_rate,
                                                  'decay_steps': config.decay_steps,
+                                                 'max_gradient_norm': config.max_gradient_norm,
                                                  'parallel_iters': config.parallel_iters,
                                                  'pkeep': 1.0,
                                                  'do_test': False,
@@ -301,6 +317,7 @@ def main(argv):
         plt.show(block=True)
 
         # Prediction
+        sequence = sequence[1:]
         sequence = np.tile(sequence[np.newaxis,:], [config.eval_batch_size, 1])
         # Find out, how to use a batch size of 1 ...
         predict_dict = {'train_features': {'sequence_values': sequence}}
