@@ -116,7 +116,7 @@ def _lstmnet(
         # Input wrapper to keep symmetry with decoder
         encoder_multicell = rnn.InputProjectionWrapper (encoder_multicell,
                                                         num_proj=params['bottleneck_size'],
-                                                        activation=tf.nn.relu)
+                                                        activation=None)
         # dropout for the softmax layer
         # No dropout in bottleneck layer!
         # encoder_multicell = rnn.DropoutWrapper(encoder_multicell, output_keep_prob=pkeep)
@@ -291,7 +291,7 @@ def lstmnetv2(
         optimizer_adam = tf.train.AdamOptimizer(learning_rate=learning_rate)
         optimizer = optimizer_RMS
 
-        # train_op = optimizer.apply_gradients(zip(clipped_gradients, trainables), global_step=tf.train.get_global_step())
-        train_op = optimizer.minimize(square_error, global_step=tf.train.get_global_step())
+        train_op = optimizer.apply_gradients(zip(clipped_gradients, trainables), global_step=tf.train.get_global_step())
+        # train_op = optimizer.minimize(square_error, global_step=tf.train.get_global_step())
 
     return tf.estimator.EstimatorSpec(mode, loss=square_error, train_op=train_op)

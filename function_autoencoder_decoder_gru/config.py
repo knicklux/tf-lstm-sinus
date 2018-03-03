@@ -6,21 +6,21 @@ import math
 
 # Training
 
-learning_rate = 0.0003
-decay_rate = 0.94
+learning_rate = 0.003
+decay_rate = 0.9
 decay_steps = 1000
 max_gradient_norm = 5
-pkeep = 0.5
+pkeep = 1.0
 summary_iters = 100
 
 # Training II
 
-iters = 50000
-seed = 1233
+iters = 14000
+seed = 1234
 
 # Dataset
 
-batch_size = 200
+batch_size = 800
 epoch_size = 10000
 test_batch_size = batch_size
 test_epoch_size = 2000
@@ -51,7 +51,7 @@ parallel_iters=256
 
 sequence_length = 50
 encoder_hidden_layer_size = 4
-encoder_hidden_layer_depth = 2
+encoder_hidden_layer_depth = 1
 bottleneck_size = encoder_hidden_layer_size * encoder_hidden_layer_depth
 decoder_hidden_layer_size = encoder_hidden_layer_size
 decoder_hidden_layer_depth = encoder_hidden_layer_depth

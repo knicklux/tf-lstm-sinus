@@ -61,7 +61,7 @@ def classifier_gru_train_in_fn(train_file, test_file,
 def main(argv):
 
     timestamp = str(math.trunc(time.time()))
-    checkpoint_location = config.checkpoint_path + "/evalv2net17"
+    checkpoint_location = config.checkpoint_path + "/evalv2net22"
     # Create checkpoint+checkpoint_path
     if not os.path.exists(checkpoint_location):
         os.makedirs(checkpoint_location)
