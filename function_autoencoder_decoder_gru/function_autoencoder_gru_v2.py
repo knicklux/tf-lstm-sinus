@@ -113,8 +113,13 @@ def _lstmnet(
         encoder_dropcells = [rnn.DropoutWrapper(cell, input_keep_prob=pkeep)
                              for cell in encoder_cells]
         encoder_multicell = rnn.MultiRNNCell(encoder_dropcells, state_is_tuple=False)
+        # Input wrapper to keep symmetry with decoder
+        encoder_multicell = rnn.InputProjectionWrapper (encoder_multicell,
+                                                        num_proj=params['bottleneck_size'],
+                                                        activation=tf.nn.relu)
         # dropout for the softmax layer
-        encoder_multicell = rnn.DropoutWrapper(encoder_multicell, output_keep_prob=pkeep)
+        # No dropout in bottleneck layer!
+        # encoder_multicell = rnn.DropoutWrapper(encoder_multicell, output_keep_prob=pkeep)
 
         encoded_Yr, encoded_H = tf.nn.dynamic_rnn(encoder_multicell, X, dtype=tf.float32,
                                                   initial_state=encoder_Hin, scope='EncoderNet',
@@ -148,12 +153,14 @@ def _lstmnet(
         # dropout for the softmax layer
         decoder_multicell = rnn.DropoutWrapper(decoder_multicell, output_keep_prob=pkeep)
         # dense layer to adjust dimensions
-        decoder_multicell = rnn.OutputProjectionWrapper(decoder_multicell, params['dimension'])
+        decoder_multicell = rnn.OutputProjectionWrapper(decoder_multicell,
+                                                        params['dimension'],
+                                                        activation=None)
 
         custom_Helper = create_fixed_len_numeric_training_helper(inital_time_sample, params['sequence_length'], X.dtype)
-        helper = tf.contrib.seq2seq.TrainingHelper(inputs=Labels,
-                                                   sequence_length=seqdescr,
-                                                   time_major=False)
+        #helper = tf.contrib.seq2seq.TrainingHelper(inputs=Labels,
+        #                                           sequence_length=seqdescr,
+        #                                           time_major=False)
         decoder = seq2seq.BasicDecoder(cell=decoder_multicell,
                                        helper=custom_Helper,
                                        initial_state=decoder_Hin)
@@ -284,7 +291,7 @@ def lstmnetv2(
         optimizer_adam = tf.train.AdamOptimizer(learning_rate=learning_rate)
         optimizer = optimizer_RMS
 
-        train_op = optimizer.apply_gradients(zip(clipped_gradients, trainables), global_step=tf.train.get_global_step())
-        #train_op = optimizer.minimize(square_error, global_step=tf.train.get_global_step())
+        # train_op = optimizer.apply_gradients(zip(clipped_gradients, trainables), global_step=tf.train.get_global_step())
+        train_op = optimizer.minimize(square_error, global_step=tf.train.get_global_step())
 
     return tf.estimator.EstimatorSpec(mode, loss=square_error, train_op=train_op)

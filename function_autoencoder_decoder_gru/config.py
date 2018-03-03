@@ -16,13 +16,13 @@ summary_iters = 100
 # Training II
 
 iters = 50000
-seed = 1234
+seed = 1233
 
 # Dataset
 
-batch_size = 800
+batch_size = 200
 epoch_size = 10000
-test_batch_size = 800
+test_batch_size = batch_size
 test_epoch_size = 2000
 eval_seq_num = 200
 eval_batch_size = 1
@@ -50,7 +50,7 @@ parallel_iters=256
 # Net Params
 
 sequence_length = 50
-encoder_hidden_layer_size = 20
+encoder_hidden_layer_size = 4
 encoder_hidden_layer_depth = 2
 bottleneck_size = encoder_hidden_layer_size * encoder_hidden_layer_depth
 decoder_hidden_layer_size = encoder_hidden_layer_size

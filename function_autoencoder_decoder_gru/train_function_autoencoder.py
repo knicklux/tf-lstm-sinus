@@ -61,7 +61,7 @@ def classifier_gru_train_in_fn(train_file, test_file,
 def main(argv):
 
     timestamp = str(math.trunc(time.time()))
-    checkpoint_location = config.checkpoint_path + "/evalv2net8"
+    checkpoint_location = config.checkpoint_path + "/evalv2net17"
     # Create checkpoint+checkpoint_path
     if not os.path.exists(checkpoint_location):
         os.makedirs(checkpoint_location)
@@ -140,7 +140,7 @@ def main(argv):
     # Limit used gpu memory.
     print("Configuring Tensorflow")
     tfconfig = tf.ConfigProto()
-    tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.25
+    tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.225
     econfig = tf.estimator.RunConfig(model_dir=checkpoint_location,
                                      tf_random_seed=config.seed,
                                      save_summary_steps=config.summary_iters,
@@ -225,7 +225,7 @@ def main(argv):
     eval_result = classifier.evaluate(input_fn=pipe_test, steps=1500)
     print('\nTest set test_square_error: {test_square_error:0.3f}\n'.format(**eval_result))
 
-    print('Evaluating reconstructed net for verification')
+    print('Inference')
 
     pred_en_Hin = np.zeros([config.eval_batch_size, config.encoder_hidden_layer_size *
                     config.encoder_hidden_layer_depth], dtype=np.float32)
@@ -233,7 +233,7 @@ def main(argv):
     pred_de_Hin = np.zeros([config.eval_batch_size, config.decoder_hidden_layer_size *
                     config.decoder_hidden_layer_depth], dtype=np.float32)
     # Hin: [ BATCH_SIZE, DECODER_INTERNALSIZE * DECODER_NLAYERS ]
-    decoder_inital_time_sample = np.zeros([config.batch_size, config.dimension], dtype=np.float32)
+    decoder_inital_time_sample = np.zeros([1, config.dimension], dtype=np.float32)
     # decoder_inital_time_sample: [ DIMENSION ]
 
     eval_classifier = tf.estimator.Estimator(model_fn=lstmnetv2,

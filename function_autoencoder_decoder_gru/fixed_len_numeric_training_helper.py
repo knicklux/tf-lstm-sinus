@@ -25,7 +25,7 @@ from tensorflow.contrib import seq2seq
 # Dimensions for sample are taken from the inital_sample and input_batch
 
 def batch_of_bools(val, batch_size):
-    return tf.constant(val, shape=[batch_size, 1], dtype=tf.bool)
+    return tf.constant(val, shape=[batch_size], dtype=tf.bool)
 
 def fixed_len_initialize_fn(init_inputs, seqlen, batch_size):
     if seqlen > 1:
@@ -45,10 +45,8 @@ def fixed_len_sample_fn(time, outputs, state):
     return outputs
 
 def fixed_len_next_inputs_fn(time, outputs, state, sample_ids, seqlen, batch_size):
-    if time != seqlen:
-        finished = batch_of_bools(False, batch_size)
-    else:
-        finished = batch_of_bools(True, batch_size)
+    next_time = time + 1
+    finished = (next_time >= seqlen)
     print('nextinputs')
     print(outputs)
     print('state')
@@ -58,7 +56,10 @@ def fixed_len_next_inputs_fn(time, outputs, state, sample_ids, seqlen, batch_siz
     return finished, outputs, state
 
 def fixed_len_sample_ids_shape(batch_size, dimension):
-    return tf.constant([batch_size, 1], dtype=tf.int32, name='sample_ids_shape')
+    # Who documented this *?
+    # https://www.tensorflow.org/api_docs/python/tf/contrib/seq2seq/CustomHelper
+    return (dimension,)
+#    return tf.constant([1], dtype=tf.int32, name='sample_ids_shape')
 
 def create_fixed_len_numeric_training_helper(initial_time_sample, sequence_length, dtype):
     batch_size = initial_time_sample.shape[0]
@@ -81,4 +82,4 @@ def create_fixed_len_numeric_training_helper(initial_time_sample, sequence_lengt
     print(sample_ids_shape)
     print(sample_ids_dtype)
 
-    return seq2seq.CustomHelper(initialize_fn, sample_fn, next_inputs_fn)
+    return seq2seq.CustomHelper(initialize_fn, sample_fn, next_inputs_fn, sample_ids_shape, sample_ids_dtype)
